@@ -133,9 +133,12 @@ export default function HomePage() {
     <div style={{ paddingTop: 16 }}>
       {/* Page Header — Greeting */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <div>
-          <p className="text-secondary" style={{ marginBottom: 2 }}>{greeting}</p>
-          <h1 style={{ fontSize: 22, fontWeight: 700 }}>{userName}</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <img src="/icon-192.png" alt="WorkoutSplit" width={40} height={40} style={{ borderRadius: 12 }} />
+          <div>
+            <p className="text-secondary" style={{ marginBottom: 2 }}>{greeting}</p>
+            <h1 style={{ fontSize: 22, fontWeight: 700 }}>{userName}</h1>
+          </div>
         </div>
         <button 
           style={{ width: 44, height: 44, borderRadius: '50%', border: 'none', background: 'var(--input-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text-primary)' }}

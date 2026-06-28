@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="public/icon-192.png" width="80" alt="WorkoutSplit logo" />
+  <img src="public/icon-192.png" width="100" alt="WorkoutSplit logo" />
 </p>
 
 <h1 align="center">WorkoutSplit</h1>
@@ -16,36 +16,40 @@
   <img src="https://img.shields.io/badge/ads-zero-red?style=flat-square" alt="no ads" />
 </p>
 
----
+<br />
 
 ## The Problem
 
-Every gym-goer knows the pain: fitness apps that demand $9.99/month subscriptions, harvest your data, require account creation, serve you ads between sets, and weigh in at 200MB+. You just want to log your bench press — not sign a contract.
+Every gym-goer knows the pain: fitness apps that demand $9.99/month subscriptions, harvest your data, require account creation, serve you ads between sets, and weigh in at 200MB+. You just want to log your bench press, not sign a contract.
 
 ## The Solution
 
-**WorkoutSplit** is a free, offline-first, privacy-respecting Progressive Web App (PWA) that does one thing exceptionally well: **track your workouts**. No account. No cloud. No ads. Under 1MB. Install it on your phone's home screen and it works exactly like a native app — even without internet.
+**WorkoutSplit** is a free, offline-first, privacy-respecting Progressive Web App (PWA) that does one thing exceptionally well: **track your workouts**. No account. No cloud. No ads. Under 1MB. Install it on your phone's home screen and it works exactly like a native app, even without internet.
 
----
+<br />
+
+<p align="center">
+  <img src="public/icon-192.png" width="40" alt="WorkoutSplit" />
+</p>
 
 ## Features
 
 ### Workout Logging
-- **Real-time set tracking** — log weight × reps for every set
+- **Real-time set tracking** · log weight × reps for every set
 - **21 pre-loaded exercises** across Push, Pull, Legs, and Core categories
-- **Auto rest timer** (30s–120s presets) with visual SVG ring and vibration alert
-- **One-tap set completion** — mark sets done as you go
+- **Auto rest timer** (30s to 120s presets) with visual SVG ring and vibration alert
+- **One-tap set completion** · mark sets done as you go
 
 ### Progress Analytics
 - **Interactive line charts** with cubic-bezier smooth curves, gradient fills, and animated data points
-- **Time filters** — This Week, This Month, All Time
-- **Metric toggles** — Max Weight, Total Volume, Total Sets
+- **Time filters** · This Week, This Month, All Time
+- **Metric toggles** · Max Weight, Total Volume, Total Sets
 - **Category-grouped exercise picker** with custom dropdown UI
 - **Auto-detected Personal Records** with historical tracking
 
 ### Workout History
 - **Complete session archive** sorted by date
-- **Expandable session details** — tap any session to see full exercise breakdown
+- **Expandable session details** · tap any session to see full exercise breakdown
 - **Duration, volume, and set count** per session
 
 ### Split Builder
@@ -57,17 +61,21 @@ Every gym-goer knows the pain: fitness apps that demand $9.99/month subscription
 ### Home Dashboard
 - **Time-aware greeting** (Good Morning / Afternoon / Evening)
 - **Today's workout card** with live progress ring
-- **Popular exercises** — quick-add shortcuts
-- **Featured workouts** — curated routines (Upper Body, Lower Body, Full Body)
-- **Weekly stats** — workouts completed, total volume, active streak
+- **Popular exercises** · quick-add shortcuts
+- **Featured workouts** · curated routines (Upper Body, Lower Body, Full Body)
+- **Weekly stats** · workouts completed, total volume, active streak
 
 ### PWA & Offline
-- **Installable** on iOS, Android, and Desktop — no app store needed
+- **Installable** on iOS, Android, and Desktop · no app store needed
 - **Works fully offline** via service worker with cache-first strategy
 - **Auto-redirects to /app** when opened from home screen (skips landing page)
-- **< 1MB total size** — installs in under 5 seconds
+- **< 1MB total size** · installs in under 5 seconds
 
----
+<br />
+
+<p align="center">
+  <img src="public/icon-192.png" width="40" alt="WorkoutSplit" />
+</p>
 
 ## Tech Stack
 
@@ -78,15 +86,19 @@ Every gym-goer knows the pain: fitness apps that demand $9.99/month subscription
 | **UI** | React 19, Vanilla CSS (no UI library) |
 | **Font** | [Orbitron](https://fonts.google.com/specimen/Orbitron) (Google Fonts, variable weight) |
 | **Charts** | Custom SVG `<LineChart />` component (no charting library) |
-| **Storage** | `localStorage` — all data stays on-device |
+| **Storage** | `localStorage` · all data stays on-device |
 | **PWA** | Custom service worker + Web App Manifest |
 | **Deployment** | Vercel (recommended), any Node.js host |
 
 ### Zero External UI Dependencies
 
-No Tailwind. No Chart.js. No component library. Every component — the bottom nav, rest timer, line chart, progress circle, exercise cards — is built from scratch with vanilla CSS and inline styles. This keeps the bundle tiny and the design fully controlled.
+No Tailwind. No Chart.js. No component library. Every component (the bottom nav, rest timer, line chart, progress circle, exercise cards) is built from scratch with vanilla CSS and inline styles. This keeps the bundle tiny and the design fully controlled.
 
----
+<br />
+
+<p align="center">
+  <img src="public/icon-192.png" width="40" alt="WorkoutSplit" />
+</p>
 
 ## Architecture
 
@@ -133,7 +145,11 @@ User Action → React State → localStorage → UI Update
 
 All data is read/written directly to `localStorage` via the `storage.ts` module. No server, no database, no API calls for core functionality. The app works identically online and offline.
 
----
+<br />
+
+<p align="center">
+  <img src="public/icon-192.png" width="40" alt="WorkoutSplit" />
+</p>
 
 ## Getting Started
 
@@ -156,7 +172,7 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) to see the landing page.  
+Open [http://localhost:3000](http://localhost:3000) to see the landing page.
 Open [http://localhost:3000/app](http://localhost:3000/app) to go directly to the app.
 
 ### Build for Production
@@ -166,7 +182,11 @@ npm run build
 npm start
 ```
 
----
+<br />
+
+<p align="center">
+  <img src="public/icon-192.png" width="40" alt="WorkoutSplit" />
+</p>
 
 ## Deployment
 
@@ -182,12 +202,16 @@ Or connect the GitHub repo to [vercel.com](https://vercel.com) for automatic dep
 
 WorkoutSplit is a standard Next.js app. It deploys to any platform that supports Node.js:
 
-- **Netlify** — `npm run build` → deploy `.next/`
-- **Railway** — connect repo, auto-detected
-- **Docker** — use the official [Next.js Dockerfile](https://nextjs.org/docs/app/building-your-application/deploying#docker-image)
-- **Static Export** — add `output: 'export'` to `next.config.ts` for CDN hosting
+- **Netlify** · `npm run build` → deploy `.next/`
+- **Railway** · connect repo, auto-detected
+- **Docker** · use the official [Next.js Dockerfile](https://nextjs.org/docs/app/building-your-application/deploying#docker-image)
+- **Static Export** · add `output: 'export'` to `next.config.ts` for CDN hosting
 
----
+<br />
+
+<p align="center">
+  <img src="public/icon-192.png" width="40" alt="WorkoutSplit" />
+</p>
 
 ## Design System
 
@@ -214,21 +238,29 @@ WorkoutSplit is a standard Next.js app. It deploys to any platform that supports
 
 ### Typography
 
-**Orbitron** — a geometric sans-serif designed for displays. Loaded via `next/font/google` with weights 400–900 for optimal rendering and zero layout shift.
+**Orbitron** · a geometric sans-serif designed for displays. Loaded via `next/font/google` with weights 400 to 900 for optimal rendering and zero layout shift.
 
----
+<br />
+
+<p align="center">
+  <img src="public/icon-192.png" width="40" alt="WorkoutSplit" />
+</p>
 
 ## Privacy & Data
 
-- **No account required** — ever
-- **No analytics or tracking** — zero third-party scripts
-- **No cloud sync** — data never leaves the device
-- **No cookies** — nothing to consent to
-- **localStorage only** — clear browser data to reset
+- **No account required** · ever
+- **No analytics or tracking** · zero third-party scripts
+- **No cloud sync** · data never leaves the device
+- **No cookies** · nothing to consent to
+- **localStorage only** · clear browser data to reset
 
 This is a genuinely private app. There is no server-side data collection, no telemetry, no crash reporting. The API routes exist only as backward-compatible stubs.
 
----
+<br />
+
+<p align="center">
+  <img src="public/icon-192.png" width="40" alt="WorkoutSplit" />
+</p>
 
 ## Browser Support
 
@@ -239,7 +271,11 @@ This is a genuinely private app. There is no server-side data collection, no tel
 | Chrome / Edge (Desktop) | Full (installable PWA) |
 | Firefox | Functional (no install prompt) |
 
----
+<br />
+
+<p align="center">
+  <img src="public/icon-192.png" width="40" alt="WorkoutSplit" />
+</p>
 
 ## Roadmap
 
@@ -251,7 +287,11 @@ This is a genuinely private app. There is no server-side data collection, no tel
 - [ ] Superset & circuit support
 - [ ] Cloud backup (opt-in, encrypted)
 
----
+<br />
+
+<p align="center">
+  <img src="public/icon-192.png" width="40" alt="WorkoutSplit" />
+</p>
 
 ## Contributing
 
@@ -267,14 +307,16 @@ git push origin feature/your-feature
 # Open a Pull Request
 ```
 
----
+<br />
 
 ## License
 
 MIT © [Kartik Kittad](https://github.com/Kartikkittad)
 
----
+<br />
 
 <p align="center">
+  <img src="public/icon-192.png" width="60" alt="WorkoutSplit" />
+  <br /><br />
   <strong>Free forever · No ads · Your data stays on your device</strong>
 </p>

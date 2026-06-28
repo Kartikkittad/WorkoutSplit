@@ -174,7 +174,7 @@ export default function LandingPage() {
       }}>
         <div style={{ maxWidth: SECTION_WIDTH, margin: '0 auto', padding: '12px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 34, height: 34, borderRadius: 10, background: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 800 }}>W</div>
+            <div style={{ width: 34, height: 34, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 900, color: 'var(--text-primary)' }}>W</div>
             <span style={{ fontSize: 17, fontWeight: 700 }}>WorkoutSplit</span>
           </div>
           <button onClick={scrollToInstall} style={{
@@ -687,7 +687,7 @@ export default function LandingPage() {
       {/* ═══════════════════ FOOTER ═══════════════════ */}
       <footer style={{ padding: '28px 24px 36px', textAlign: 'center', borderTop: '1px solid rgba(0,0,0,0.04)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 10 }}>
-          <div style={{ width: 24, height: 24, borderRadius: 7, background: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800 }}>W</div>
+          <div style={{ width: 24, height: 24, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 900, color: 'var(--text-primary)' }}>W</div>
           <span style={{ fontSize: 14, fontWeight: 700 }}>WorkoutSplit</span>
         </div>
         <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
