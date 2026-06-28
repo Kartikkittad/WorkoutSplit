@@ -1,0 +1,651 @@
+/* ==========================================
+   WorkoutSplit — Global Design System
+   ========================================== */
+
+:root {
+  --bg: #F5F5F0;
+  --card-bg: #FFFFFF;
+  --primary: #C8F135;
+  --primary-dark: #A8D010;
+  --text-primary: #0F172A;
+  --text-secondary: #64748B;
+  --nav-bg: #1A1A2E;
+  --input-bg: #f1f5f9;
+  --border-light: #e2e8f0;
+  --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.06);
+  --shadow-card-hover: 0 6px 20px rgba(0, 0, 0, 0.1);
+  --radius-card: 24px;
+  --radius-btn: 9999px;
+  --radius-input: 16px;
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+html {
+  height: 100%;
+  color-scheme: light;
+}
+
+html, body {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+body {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  color: var(--text-primary);
+  background: var(--bg);
+  font-family: var(--font-orbitron), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.5;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* ==========================================
+   Layout — Mobile-first container
+   ========================================== */
+
+.app-container {
+  max-width: 390px;
+  margin: 0 auto;
+  width: 100%;
+  min-height: 100dvh;
+  padding-bottom: 100px; /* space for bottom nav */
+  position: relative;
+}
+
+/* ==========================================
+   Shared — Cards
+   ========================================== */
+
+.card {
+  background: var(--card-bg);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  padding: 20px;
+}
+
+.card-hover {
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+  cursor: pointer;
+}
+
+.card-hover:hover {
+  box-shadow: var(--shadow-card-hover);
+  transform: translateY(-2px);
+}
+
+/* ==========================================
+   Shared — Buttons
+   ========================================== */
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 56px;
+  padding: 0 32px;
+  border-radius: var(--radius-btn);
+  background: var(--primary);
+  color: var(--text-primary);
+  font-weight: 700;
+  font-size: 16px;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+  font-family: inherit;
+}
+
+.btn-primary:hover {
+  background: var(--primary-dark);
+}
+
+.btn-primary:active {
+  transform: scale(0.97);
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 56px;
+  padding: 0 32px;
+  border-radius: var(--radius-btn);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 16px;
+  border: 1px solid var(--border-light);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+  font-family: inherit;
+}
+
+.btn-secondary:hover {
+  background: var(--input-bg);
+  border-color: #cbd5e1;
+}
+
+.btn-secondary:active {
+  transform: scale(0.97);
+}
+
+/* ==========================================
+   Shared — Inputs
+   ========================================== */
+
+.input-field {
+  width: 100%;
+  height: 56px;
+  padding: 0 20px;
+  border-radius: var(--radius-input);
+  background: var(--input-bg);
+  border: none;
+  font-size: 16px;
+  font-family: inherit;
+  color: var(--text-primary);
+  outline: none;
+  transition: box-shadow 0.15s ease;
+}
+
+.input-field:focus {
+  box-shadow: 0 0 0 2px var(--primary);
+}
+
+.input-field::placeholder {
+  color: var(--text-secondary);
+}
+
+/* ==========================================
+   Shared — Typography
+   ========================================== */
+
+.section-heading {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-align: left;
+}
+
+.text-secondary {
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+/* ==========================================
+   Bottom Navigation
+   ========================================== */
+
+.bottom-nav {
+  position: fixed;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 24px);
+  max-width: 366px;
+  background: var(--nav-bg);
+  border-radius: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 6px;
+  z-index: 1000;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18), 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 8px 0;
+  flex: 1;
+  min-height: 44px;
+  border-radius: 22px;
+  justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+  position: relative;
+  transition: background 0.2s ease;
+  font-family: var(--font-orbitron), -apple-system, sans-serif;
+}
+
+.nav-item svg {
+  width: 24px;
+  height: 24px;
+  color: #FFFFFF;
+  opacity: 0.5;
+  transition: opacity 0.2s ease;
+}
+
+.nav-item span {
+  font-size: 11px;
+  font-weight: 500;
+  color: #FFFFFF;
+  opacity: 0.5;
+  transition: opacity 0.2s ease;
+  font-family: var(--font-orbitron), -apple-system, sans-serif;
+}
+
+.nav-item.active {
+  background: var(--primary);
+}
+
+.nav-item.active svg {
+  opacity: 1;
+  color: var(--text-primary);
+}
+
+.nav-item.active span {
+  opacity: 1;
+  color: var(--text-primary);
+}
+
+.nav-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--primary);
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* ==========================================
+   Progress Circle
+   ========================================== */
+
+.progress-circle-container {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.progress-circle-svg {
+  transform: rotate(-90deg);
+}
+
+.progress-circle-bg {
+  fill: none;
+}
+
+.progress-circle-fg {
+  fill: none;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.6s ease;
+}
+
+.progress-circle-content {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ==========================================
+   Exercise Card
+   ========================================== */
+
+.exercise-card {
+  min-width: 140px;
+  flex-shrink: 0;
+  border-radius: 20px;
+  padding: 16px;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.exercise-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+.exercise-card:active {
+  transform: scale(0.97);
+}
+
+.exercise-card-emoji {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  margin-bottom: 12px;
+}
+
+.exercise-card-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+  line-height: 1.3;
+}
+
+.exercise-card-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+/* ==========================================
+   Workout / History Card
+   ========================================== */
+
+.history-card {
+  border-left: 4px solid var(--primary);
+}
+
+.history-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.history-card-date {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.history-card-pill {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: rgba(200, 241, 53, 0.2);
+  padding: 4px 12px;
+  border-radius: var(--radius-btn);
+}
+
+.history-card-name {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+}
+
+.history-card-exercises {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.history-card-exercise {
+  font-size: 13px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.history-card-exercise::before {
+  content: '';
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--primary);
+  flex-shrink: 0;
+}
+
+.history-card-more {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-style: italic;
+  margin-top: 4px;
+  padding-left: 10px;
+}
+
+/* ==========================================
+   Line Chart — Premium
+   ========================================== */
+
+.line-chart-container {
+  width: 100%;
+  overflow: hidden;
+}
+
+.line-chart-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Dashed, subtle grid */
+.line-chart-grid-line {
+  stroke: #e2e8f0;
+  stroke-width: 0.8;
+  stroke-dasharray: 5 4;
+}
+
+/* Y-axis labels */
+.line-chart-y-label {
+  font-size: 10px;
+  fill: var(--text-secondary);
+  font-family: var(--font-orbitron), -apple-system, sans-serif;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* X-axis labels */
+.line-chart-x-label {
+  font-size: 10px;
+  fill: var(--text-secondary);
+  font-family: var(--font-orbitron), -apple-system, sans-serif;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+/* Smooth curve line */
+.line-chart-line {
+  fill: none;
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+/* Area fill under curve */
+.line-chart-area {
+  opacity: 1;
+}
+
+/* Dot group hover interaction */
+.line-chart-dot-group {
+  cursor: pointer;
+}
+
+/* Outer glow ring — hidden by default, visible on hover */
+.line-chart-dot-glow {
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.line-chart-dot-group:hover .line-chart-dot-glow {
+  opacity: 0.25;
+  animation: line-chart-pulse 1.6s ease-in-out infinite;
+}
+
+/* Solid colored dot */
+.line-chart-dot {
+  stroke: #FFFFFF;
+  stroke-width: 2;
+  transition: r 0.2s ease, stroke-width 0.2s ease;
+}
+
+.line-chart-dot-group:hover .line-chart-dot {
+  stroke-width: 2.5;
+}
+
+/* Inner white highlight */
+.line-chart-dot-inner {
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+/* Value labels above dots */
+.line-chart-value-label {
+  font-size: 10px;
+  font-weight: 600;
+  fill: var(--text-primary);
+  font-family: var(--font-orbitron), -apple-system, sans-serif;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.85;
+}
+
+/* Pulse keyframes */
+@keyframes line-chart-pulse {
+  0%, 100% { opacity: 0.2; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(1.3); }
+}
+
+/* ---------- Empty state ---------- */
+.line-chart-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--text-secondary);
+}
+
+.line-chart-empty-icon {
+  opacity: 0.6;
+}
+
+.line-chart-empty-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  letter-spacing: 0.02em;
+}
+
+/* ==========================================
+   Rest Timer
+   ========================================== */
+
+.rest-timer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+}
+
+.rest-timer-circle {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rest-timer-svg {
+  transform: rotate(-90deg);
+}
+
+.rest-timer-bg {
+  fill: none;
+  stroke: rgba(0, 0, 0, 0.06);
+}
+
+.rest-timer-fg {
+  fill: none;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.3s linear;
+}
+
+.rest-timer-time {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 40px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -1px;
+  font-variant-numeric: tabular-nums;
+}
+
+.rest-timer-presets {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.rest-timer-preset {
+  height: 40px;
+  padding: 0 18px;
+  border-radius: var(--radius-btn);
+  border: 1px solid var(--border-light);
+  background: var(--card-bg);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  font-family: inherit;
+}
+
+.rest-timer-preset:hover {
+  background: var(--input-bg);
+}
+
+.rest-timer-preset.active {
+  background: rgba(200, 241, 53, 0.15);
+  border-color: var(--primary);
+  color: var(--text-primary);
+}
+
+.rest-timer-controls {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  max-width: 280px;
+}
+
+.rest-timer-controls .btn-primary,
+.rest-timer-controls .btn-secondary {
+  flex: 1;
+  height: 48px;
+  padding: 0 20px;
+  font-size: 15px;
+}
+
+/* ==========================================
+   Utility — Horizontal scroll row
+   ========================================== */
+
+.scroll-row {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scroll-row::-webkit-scrollbar {
+  display: none;
+}
