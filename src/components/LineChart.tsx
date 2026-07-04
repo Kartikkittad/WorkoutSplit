@@ -234,32 +234,7 @@ export default function LineChart({
           stroke={color}
         />
 
-        {/* Data dots — clean, no glow clutter */}
-        {!hideAxes && points.map((p, i) => (
-          <g key={i} className="line-chart-dot-group">
-            <circle
-              className="line-chart-dot-glow"
-              cx={p.x}
-              cy={p.y}
-              r={8}
-              fill={color}
-            />
-            <circle
-              className="line-chart-dot"
-              cx={p.x}
-              cy={p.y}
-              r={4}
-              fill={color}
-            />
-            <circle
-              className="line-chart-dot-inner"
-              cx={p.x}
-              cy={p.y}
-              r={1.5}
-              fill="#FFFFFF"
-            />
-          </g>
-        ))}
+
 
         {/* Value label — only on the LAST point for clarity */}
         {!hideAxes && points.length > 0 && (

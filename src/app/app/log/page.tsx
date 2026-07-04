@@ -850,9 +850,22 @@ function LogWorkoutContent() {
             @keyframes popIn { 0% { transform: scale(0.5); opacity: 0; } 70% { transform: scale(1.1); } 100% { transform: scale(1); opacity: 1; } }
           `}</style>
           
-          <div style={{ animation: 'popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards' }}>
-            <div style={{ fontSize: 80, marginBottom: 16 }}>🏆</div>
-            <h2 style={{ color: 'white', fontSize: 28, fontWeight: 800, marginBottom: 12, lineHeight: 1.2 }}>
+          <div style={{ animation: 'popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards', width: '100%', maxWidth: 400 }}>
+            <div style={{ 
+              background: 'rgba(200, 241, 53, 0.2)', 
+              color: 'var(--primary)', 
+              padding: '8px 16px', 
+              borderRadius: 9999, 
+              display: 'inline-block',
+              fontWeight: 800,
+              fontSize: 14,
+              letterSpacing: 1.5,
+              textTransform: 'uppercase',
+              marginBottom: 24
+            }}>
+              Achievement Unlocked
+            </div>
+            <h2 style={{ color: 'white', fontSize: 'clamp(24px, 6vw, 32px)', fontWeight: 900, marginBottom: 12, lineHeight: 1.2 }}>
               {celebration.text}
             </h2>
             <p style={{ color: 'var(--primary)', fontSize: 16, fontWeight: 600, marginBottom: 32 }}>

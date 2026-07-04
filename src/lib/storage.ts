@@ -186,13 +186,8 @@ export function getBodyWeights(): BodyWeightEntry[] {
 
 export function saveBodyWeight(weight: number): void {
   const entries = getBodyWeights();
-  const date = new Date().toISOString().split('T')[0];
-  const existingIndex = entries.findIndex(e => e.date === date);
-  if (existingIndex >= 0) {
-    entries[existingIndex].weight = weight;
-  } else {
-    entries.push({ id: generateId(), weight, date });
-  }
+  const date = new Date().toISOString(); // use full timestamp so multiple logs per day are distinct
+  entries.push({ id: generateId(), weight, date });
   writeStore(STORAGE_KEYS.BODYWEIGHT, entries);
 }
 

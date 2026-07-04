@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 
 import ProgressCircle from '@/components/ProgressCircle';
@@ -84,6 +84,15 @@ export default function HomePage() {
   const [activeSplit, setActiveSplit] = useState<{ name: string; days: { name: string; exerciseIds: string[] }[] } | null>(null);
   const [bodyWeights, setBodyWeights] = useState<BodyWeightEntry[]>([]);
   const [currentWeightInput, setCurrentWeightInput] = useState<string>('');
+  const [weightTimeframe, setWeightTimeframe] = useState<'7d' | '30d' | 'all'>('7d');
+
+  const filteredBodyWeights = useMemo(() => {
+    if (weightTimeframe === 'all') return bodyWeights;
+    const now = Date.now();
+    const msInDay = 24 * 60 * 60 * 1000;
+    const days = weightTimeframe === '7d' ? 7 : 30;
+    return bodyWeights.filter(w => (now - new Date(w.date).getTime()) <= days * msInDay);
+  }, [bodyWeights, weightTimeframe]);
 
   useEffect(() => {
     import('@/lib/seed').then(({ seedSampleData }) => {
@@ -99,7 +108,8 @@ export default function HomePage() {
       
       // Pre-fill input if there's a weight logged today
       const today = new Date().toISOString().split('T')[0];
-      const todaysWeight = weights.find(w => w.date === today);
+      // Search from the end to get the most recently logged weight today
+      const todaysWeight = [...weights].reverse().find(w => w.date.startsWith(today));
       if (todaysWeight) {
         setCurrentWeightInput(todaysWeight.weight.toString());
       }
@@ -199,23 +209,46 @@ export default function HomePage() {
       <div className="card" style={{ marginBottom: 16, padding: 16 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <h2 style={{ fontSize: 16, fontWeight: 700 }}>Body Weight</h2>
-          <span className="text-secondary" style={{ fontSize: 13, fontWeight: 600 }}>Trend (Last 7d)</span>
+          <select 
+            className="text-secondary" 
+            style={{ 
+              fontSize: 13, 
+              fontWeight: 600, 
+              background: 'transparent', 
+              border: 'none', 
+              outline: 'none', 
+              cursor: 'pointer',
+              appearance: 'none',
+              paddingRight: 16,
+              backgroundImage: 'url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%2394a3b8%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E")',
+              backgroundRepeat: 'no-repeat',
+              backgroundPosition: 'right center',
+              backgroundSize: '10px auto',
+              fontFamily: 'inherit'
+            }}
+            value={weightTimeframe}
+            onChange={(e) => setWeightTimeframe(e.target.value as any)}
+          >
+            <option value="7d" style={{ background: 'var(--card-bg)', color: 'var(--text-primary)' }}>Trend (Last 7d)</option>
+            <option value="30d" style={{ background: 'var(--card-bg)', color: 'var(--text-primary)' }}>Trend (Last 30d)</option>
+            <option value="all" style={{ background: 'var(--card-bg)', color: 'var(--text-primary)' }}>Trend (All Time)</option>
+          </select>
         </div>
         
-        {bodyWeights.length > 1 ? (
+        {filteredBodyWeights.length > 0 ? (
           <div style={{ marginBottom: 16 }}>
             <LineChart 
-              data={bodyWeights.map(w => ({ label: new Date(w.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), value: w.weight }))} 
+              data={filteredBodyWeights.map(w => ({ label: new Date(w.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), value: w.weight }))} 
               color="#38bdf8" 
               height={80} 
-              hideAxes={true} 
+              hideAxes={true}
             />
           </div>
         ) : (
           <p className="text-secondary" style={{ fontSize: 13, marginBottom: 16 }}>Log more weights to see your trend!</p>
         )}
         
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, width: '100%' }}>
           <input
             type="number"
             step="0.1"
@@ -224,6 +257,8 @@ export default function HomePage() {
             placeholder="Weight (kg)"
             style={{
               flex: 1,
+              minWidth: 0,
+              height: 44,
               background: 'var(--input-bg)',
               border: 'none',
               borderRadius: 12,
@@ -239,6 +274,7 @@ export default function HomePage() {
             onClick={handleSaveBodyWeight}
             disabled={!currentWeightInput || isNaN(parseFloat(currentWeightInput))}
             style={{
+              height: 44,
               background: 'var(--primary)',
               color: '#0F172A',
               border: 'none',
@@ -247,6 +283,9 @@ export default function HomePage() {
               fontWeight: 700,
               fontSize: 14,
               cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              flexShrink: 0,
+              fontFamily: 'inherit',
               opacity: (!currentWeightInput || isNaN(parseFloat(currentWeightInput))) ? 0.5 : 1,
             }}
           >
