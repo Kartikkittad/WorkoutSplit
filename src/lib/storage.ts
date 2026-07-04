@@ -1,4 +1,4 @@
-import type { Workout, Split } from "@/lib/types";
+import type { Workout, Split, BodyWeightEntry, PersonalRecord } from "@/lib/types";
 
 // ── Storage Keys ────────────────────────────────────────────────────────────
 const STORAGE_KEYS = {
@@ -6,6 +6,8 @@ const STORAGE_KEYS = {
   SPLITS: "workoutsplit_splits",
   ACTIVE_SPLIT: "workoutsplit_active_split",
   SETTINGS: "workoutsplit_settings",
+  BODYWEIGHT: "workoutsplit_bodyweight",
+  PRS: "workoutsplit_prs",
 } as const;
 
 // ── Types ───────────────────────────────────────────────────────────────────
@@ -172,4 +174,41 @@ export function getSettings(): Settings {
 /** Persist app settings to localStorage. */
 export function saveSettings(settings: Settings): void {
   writeStore(STORAGE_KEYS.SETTINGS, settings);
+}
+
+// ── Body Weight Functions ───────────────────────────────────────────────────
+
+export function getBodyWeights(): BodyWeightEntry[] {
+  return readStore<BodyWeightEntry[]>(STORAGE_KEYS.BODYWEIGHT, []).sort(
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+  );
+}
+
+export function saveBodyWeight(weight: number): void {
+  const entries = getBodyWeights();
+  const date = new Date().toISOString().split('T')[0];
+  const existingIndex = entries.findIndex(e => e.date === date);
+  if (existingIndex >= 0) {
+    entries[existingIndex].weight = weight;
+  } else {
+    entries.push({ id: generateId(), weight, date });
+  }
+  writeStore(STORAGE_KEYS.BODYWEIGHT, entries);
+}
+
+// ── Personal Record Functions ───────────────────────────────────────────────
+
+export function getPersonalRecords(): PersonalRecord[] {
+  return readStore<PersonalRecord[]>(STORAGE_KEYS.PRS, []);
+}
+
+export function savePersonalRecord(pr: PersonalRecord): void {
+  const prs = getPersonalRecords();
+  const existingIndex = prs.findIndex(p => p.exerciseId === pr.exerciseId);
+  if (existingIndex >= 0) {
+    prs[existingIndex] = { ...prs[existingIndex], ...pr };
+  } else {
+    prs.push({ id: generateId(), ...pr });
+  }
+  writeStore(STORAGE_KEYS.PRS, prs);
 }

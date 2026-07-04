@@ -12,6 +12,7 @@ interface LineChartProps {
   color?: string;
   height?: number;
   title?: string;
+  hideAxes?: boolean;
 }
 
 /** Build a smooth cubic-bezier SVG path through the given points. */
@@ -70,12 +71,13 @@ export default function LineChart({
   color = '#C8F135',
   height = 220,
   title,
+  hideAxes = false,
 }: LineChartProps) {
   const chartWidth = 380;
-  const paddingLeft = 48;
-  const paddingRight = 20;
-  const paddingTop = 28;
-  const paddingBottom = 36;
+  const paddingLeft = hideAxes ? 8 : 48;
+  const paddingRight = hideAxes ? 8 : 20;
+  const paddingTop = hideAxes ? 8 : 28;
+  const paddingBottom = hideAxes ? 8 : 36;
 
   const uid = useMemo(
     () => Math.random().toString(36).slice(2, 8),
@@ -198,7 +200,7 @@ export default function LineChart({
         </defs>
 
         {/* Clean grid lines + Y-axis labels */}
-        {gridLines.map((line, i) => (
+        {!hideAxes && gridLines.map((line, i) => (
           <g key={i}>
             <line
               className="line-chart-grid-line"
@@ -233,7 +235,7 @@ export default function LineChart({
         />
 
         {/* Data dots — clean, no glow clutter */}
-        {points.map((p, i) => (
+        {!hideAxes && points.map((p, i) => (
           <g key={i} className="line-chart-dot-group">
             <circle
               className="line-chart-dot-glow"
@@ -260,7 +262,7 @@ export default function LineChart({
         ))}
 
         {/* Value label — only on the LAST point for clarity */}
-        {points.length > 0 && (
+        {!hideAxes && points.length > 0 && (
           <text
             className="line-chart-value-label"
             x={points[points.length - 1].x}
@@ -272,7 +274,7 @@ export default function LineChart({
         )}
 
         {/* X-axis labels */}
-        {points.map((p, i) =>
+        {!hideAxes && points.map((p, i) =>
           i % labelStep === 0 || i === points.length - 1 ? (
             <text
               key={`label-${i}`}

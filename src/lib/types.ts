@@ -31,9 +31,17 @@ export interface ProgressDataPoint {
 }
 
 export interface PersonalRecord {
+  id?: string;
+  exerciseId: string;
   exerciseName: string;
   weight: number;
   reps: number;
+  date: string;
+}
+
+export interface BodyWeightEntry {
+  id: string;
+  weight: number;
   date: string;
 }
 

@@ -66,7 +66,6 @@ function LogWorkoutContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  /* — state ------------------------------------------------ */
   const [workoutName, setWorkoutName] = useState('My Workout');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [addedExercises, setAddedExercises] = useState<AddedExercise[]>([]);
@@ -75,8 +74,10 @@ function LogWorkoutContent() {
   const [saving, setSaving] = useState(false);
   const [showExercisePicker, setShowExercisePicker] = useState(true);
   const [initialized, setInitialized] = useState(false);
+  const [exerciseHistory, setExerciseHistory] = useState<Record<string, { maxWeight: number, lastWeight: number, lastReps: number, lastSets: number }>>({});
+  const [celebration, setCelebration] = useState<{ show: boolean; text: string; subtext: string }>({ show: false, text: '', subtext: '' });
 
-  /* — auto-add exercises from URL params -------------------- */
+  /* — auto-add exercises from URL params and load history -------------------- */
   useEffect(() => {
     if (initialized) return;
     setInitialized(true);
@@ -132,6 +133,43 @@ function LogWorkoutContent() {
         }))
       );
     }
+
+    import('@/lib/storage').then(({ getWorkouts }) => {
+      const workouts = getWorkouts();
+      const history: Record<string, { maxWeight: number, lastWeight: number, lastReps: number, lastSets: number }> = {};
+      
+      // Sort workouts by date ascending so we process oldest to newest
+      const sortedWorkouts = workouts.sort((a, b) => new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime());
+      
+      for (const w of sortedWorkouts) {
+        for (const ex of w.exercises) {
+          if (!history[ex.exerciseId]) {
+            history[ex.exerciseId] = { maxWeight: 0, lastWeight: 0, lastReps: 0, lastSets: 0 };
+          }
+          
+          let maxInSession = 0;
+          let lastSetReps = 0;
+          let completedSetsCount = 0;
+          
+          for (const set of ex.sets) {
+            if (set.completed && set.weight > 0) {
+              maxInSession = Math.max(maxInSession, set.weight);
+              lastSetReps = set.reps;
+              completedSetsCount++;
+            }
+          }
+          
+          if (completedSetsCount > 0) {
+            history[ex.exerciseId].maxWeight = Math.max(history[ex.exerciseId].maxWeight, maxInSession);
+            history[ex.exerciseId].lastWeight = maxInSession;
+            history[ex.exerciseId].lastReps = lastSetReps;
+            history[ex.exerciseId].lastSets = completedSetsCount;
+          }
+        }
+      }
+      setExerciseHistory(history);
+    });
+
   }, [searchParams, initialized]);
 
   /* — derived ---------------------------------------------- */
@@ -196,15 +234,56 @@ function LogWorkoutContent() {
             }
           : ex,
       );
-      // Auto-show rest timer when completing a set (not unchecking)
+      
       const exercise = prev.find(e => e.exerciseId === exerciseId);
-      const wasCompleted = exercise?.sets[setIndex]?.completed;
+      const setBeforeUpdate = exercise?.sets[setIndex];
+      const wasCompleted = setBeforeUpdate?.completed;
+      
+      // Auto-show rest timer when completing a set (not unchecking)
       if (!wasCompleted) {
         setShowTimer(true);
+        
+        // PR Detection (only when marking complete)
+        const setWeight = setBeforeUpdate?.weight || 0;
+        const setReps = setBeforeUpdate?.reps || 0;
+        const previousMax = exerciseHistory[exerciseId]?.maxWeight || 0;
+        
+        if (setWeight > 0 && setWeight > previousMax) {
+          // New PR!
+          const diff = setWeight - previousMax;
+          setCelebration({
+            show: true,
+            text: `New PR! ${exercise?.exerciseName} — ${setWeight}kg`,
+            subtext: previousMax > 0 ? `That's +${diff}kg from your previous best!` : `Your first PR for this exercise!`,
+          });
+          
+          // Auto-hide celebration after 3s
+          setTimeout(() => setCelebration(c => ({ ...c, show: false })), 3000);
+          
+          // Save PR asynchronously
+          import('@/lib/storage').then(({ savePersonalRecord }) => {
+            savePersonalRecord({
+              exerciseId: exerciseId,
+              exerciseName: exercise?.exerciseName || '',
+              weight: setWeight,
+              reps: setReps,
+              date: new Date().toISOString()
+            });
+          });
+          
+          // Update local history so we don't trigger again in the same session
+          setExerciseHistory(prevHistory => ({
+            ...prevHistory,
+            [exerciseId]: {
+              ...prevHistory[exerciseId],
+              maxWeight: setWeight
+            }
+          }));
+        }
       }
       return updated;
     });
-  }, []);
+  }, [exerciseHistory]);
 
   const addSet = useCallback((exerciseId: string) => {
     setAddedExercises((prev) =>
@@ -348,6 +427,30 @@ function LogWorkoutContent() {
                       <line x1="6" y1="6" x2="18" y2="18" />
                     </svg>
                   </button>
+                </div>
+
+                {/* Progressive Overload Tracker */}
+                <div style={{
+                  background: 'rgba(200, 241, 53, 0.15)',
+                  border: '1px solid rgba(200, 241, 53, 0.5)',
+                  borderRadius: 12,
+                  padding: '10px 12px',
+                  marginBottom: 16,
+                }}>
+                  {exerciseHistory[ex.exerciseId]?.lastSets > 0 ? (
+                    <>
+                      <p style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 600, marginBottom: 2 }}>
+                        Last time: {exerciseHistory[ex.exerciseId].lastSets} sets × {exerciseHistory[ex.exerciseId].lastReps} reps × {exerciseHistory[ex.exerciseId].lastWeight}kg
+                      </p>
+                      <p style={{ fontSize: 13, color: '#4d6100', fontWeight: 800 }}>
+                        Target today: {exerciseHistory[ex.exerciseId].lastSets} sets × {exerciseHistory[ex.exerciseId].lastReps} reps × {exerciseHistory[ex.exerciseId].lastWeight + 2.5}kg 🎯
+                      </p>
+                    </>
+                  ) : (
+                    <p style={{ fontSize: 12, color: '#4d6100', fontWeight: 700, margin: 0 }}>
+                      First time doing this — give it your best! 🚀
+                    </p>
+                  )}
                 </div>
 
                 {/* Column headers */}
@@ -704,6 +807,76 @@ function LogWorkoutContent() {
           {saving ? 'Saving…' : 'Finish Workout'}
         </button>
       </div>
+
+      {/* ─── PR Celebration Overlay ─── */}
+      {celebration.show && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.95)',
+            zIndex: 9999,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 24,
+            textAlign: 'center',
+            animation: 'fadeIn 0.3s ease-out forwards',
+          }}
+        >
+          {/* Confetti simulation using box-shadows in a pseudo-element is tricky in inline styles, 
+              so we'll just add a few animated dot elements */}
+          {Array.from({ length: 12 }).map((_, i) => (
+            <div
+              key={i}
+              style={{
+                position: 'absolute',
+                width: 8,
+                height: 8,
+                background: 'var(--primary)',
+                borderRadius: '50%',
+                top: '50%',
+                left: '50%',
+                transform: `translate(-50%, -50%) rotate(${i * 30}deg) translateY(-100px)`,
+                animation: 'explode 1s ease-out forwards',
+                opacity: 0,
+              }}
+            />
+          ))}
+          <style>{`
+            @keyframes fadeIn { from { opacity: 0; backdrop-filter: blur(0px); } to { opacity: 1; backdrop-filter: blur(8px); } }
+            @keyframes explode { 0% { transform: translate(-50%, -50%) scale(0); opacity: 1; } 100% { transform: translate(-50%, -50%) rotate(${Math.random() * 360}deg) translateY(-${Math.random() * 150 + 100}px); opacity: 0; } }
+            @keyframes popIn { 0% { transform: scale(0.5); opacity: 0; } 70% { transform: scale(1.1); } 100% { transform: scale(1); opacity: 1; } }
+          `}</style>
+          
+          <div style={{ animation: 'popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards' }}>
+            <div style={{ fontSize: 80, marginBottom: 16 }}>🏆</div>
+            <h2 style={{ color: 'white', fontSize: 28, fontWeight: 800, marginBottom: 12, lineHeight: 1.2 }}>
+              {celebration.text}
+            </h2>
+            <p style={{ color: 'var(--primary)', fontSize: 16, fontWeight: 600, marginBottom: 32 }}>
+              {celebration.subtext}
+            </p>
+            <button
+              onClick={() => setCelebration(c => ({ ...c, show: false }))}
+              style={{
+                background: 'var(--primary)',
+                color: '#0F172A',
+                border: 'none',
+                padding: '16px 32px',
+                borderRadius: 9999,
+                fontSize: 16,
+                fontWeight: 800,
+                cursor: 'pointer',
+                minWidth: 200,
+              }}
+            >
+              Let&apos;s gooo 🔥
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

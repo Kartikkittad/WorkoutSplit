@@ -20,14 +20,14 @@ function ProgressContent() {
     const found = EXERCISES.find(e => e.id === initialExercise);
     return found?.category || 'Push';
   });
+  const [isSharing, setIsSharing] = useState(false);
 
   useEffect(() => {
     setLoading(true);
-    import('@/lib/storage').then(({ getWorkouts }) => {
+    import('@/lib/storage').then(({ getWorkouts, getPersonalRecords }) => {
       const workouts = getWorkouts();
       // Calculate progress data for selected exercise
       const exerciseData: Record<string, ProgressDataPoint> = {};
-      const allPrs: PersonalRecord[] = [];
 
       for (const w of workouts) {
         const date = new Date(w.startedAt).toISOString().split('T')[0];
@@ -45,26 +45,67 @@ function ProgressContent() {
               }
             }
           }
-          // PRs across all exercises
-          for (const set of ex.sets) {
-            if (set.completed && set.weight > 0) {
-              const existing = allPrs.find(p => p.exerciseName === ex.exerciseName);
-              if (!existing || set.weight > existing.weight) {
-                const idx = allPrs.findIndex(p => p.exerciseName === ex.exerciseName);
-                const pr = { exerciseName: ex.exerciseName, weight: set.weight, reps: set.reps, date: w.startedAt };
-                if (idx !== -1) allPrs[idx] = pr; else allPrs.push(pr);
-              }
-            }
-          }
         }
       }
 
       const sorted = Object.values(exerciseData).sort((a, b) => a.date.localeCompare(b.date));
       setData(sorted);
+      
+      const allPrs = getPersonalRecords();
       setPrs(allPrs);
       setLoading(false);
     });
   }, [selectedExercise]);
+
+  const handleSharePR = async (pr: PersonalRecord) => {
+    if (isSharing) return;
+    setIsSharing(true);
+    
+    try {
+      const html2canvas = (await import('html2canvas')).default;
+      const element = document.getElementById(`share-card-${pr.id}`);
+      if (!element) return;
+      
+      // Temporarily make it visible for capture
+      element.style.display = 'block';
+      
+      const canvas = await html2canvas(element, {
+        backgroundColor: '#0F172A',
+        scale: 2,
+      });
+      
+      element.style.display = 'none';
+      
+      canvas.toBlob(async (blob) => {
+        if (!blob) return;
+        const file = new File([blob], `WorkoutSplit-PR-${pr.exerciseName}.png`, { type: 'image/png' });
+        
+        if (navigator.share && navigator.canShare({ files: [file] })) {
+          try {
+            await navigator.share({
+              files: [file],
+              title: 'New Personal Record!',
+              text: `Just hit a new PR on ${pr.exerciseName}: ${pr.weight}kg! 💪`,
+            });
+          } catch (e) {
+            console.error('Share failed', e);
+          }
+        } else {
+          // Fallback download
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `WorkoutSplit-PR-${pr.exerciseName}.png`;
+          a.click();
+          URL.revokeObjectURL(url);
+        }
+      }, 'image/png');
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsSharing(false);
+    }
+  };
 
   const selectedDef = EXERCISES.find(e => e.id === selectedExercise);
 
@@ -331,36 +372,78 @@ function ProgressContent() {
             <p className="text-secondary">Log workouts to track your personal records</p>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {prs.map((pr, i) => (
               <div
-                key={i}
-                className="card"
+                key={pr.id || i}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 12,
-                  padding: '12px 16px',
+                  background: 'var(--primary)',
+                  borderRadius: 9999,
+                  padding: '6px 12px 6px 6px',
+                  color: '#0F172A',
+                  fontWeight: 700,
+                  fontSize: 13,
+                  gap: 8,
                 }}
               >
-                <div style={{
-                  width: 36, height: 36, borderRadius: 10,
-                  background: 'rgba(200,241,53,0.15)', display: 'flex',
-                  alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                }}>
-                  <svg width={18} height={18} viewBox="0 0 24 24" fill="#C8F135">
-                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                <div style={{ background: '#0F172A', color: 'var(--primary)', padding: '4px 8px', borderRadius: 9999, fontSize: 11 }}>
+                  {pr.weight}kg
+                </div>
+                <span>{pr.exerciseName}</span>
+                <span style={{ opacity: 0.7, fontWeight: 500 }}>
+                  on {new Date(pr.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                </span>
+                
+                <button 
+                  onClick={() => handleSharePR(pr)}
+                  disabled={isSharing}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '2px 4px',
+                    opacity: isSharing ? 0.5 : 1,
+                  }}
+                  title="Share PR"
+                >
+                  <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                    <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+                    <polyline points="16 6 12 2 8 6" />
+                    <line x1="12" y1="2" x2="12" y2="15" />
                   </svg>
-                </div>
-                <div style={{ flex: 1 }}>
-                  <p style={{ fontSize: 14, fontWeight: 700 }}>{pr.exerciseName}</p>
-                  <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                    {new Date(pr.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                </button>
+
+                {/* Hidden Share Card (Rendered only for html2canvas) */}
+                <div 
+                  id={`share-card-${pr.id}`} 
+                  style={{ 
+                    display: 'none', 
+                    position: 'absolute', 
+                    left: -9999,
+                    width: 390, 
+                    padding: 32, 
+                    background: '#0F172A', 
+                    border: '4px solid #C8F135',
+                    borderRadius: 24,
+                    textAlign: 'center',
+                    fontFamily: 'sans-serif',
+                  }}
+                >
+                  <p style={{ color: '#C8F135', fontSize: 32, fontWeight: 800, margin: '0 0 16px 0' }}>New PR 🏆</p>
+                  <h1 style={{ color: 'white', fontSize: 42, fontWeight: 900, margin: '0 0 8px 0', lineHeight: 1.1 }}>
+                    {pr.exerciseName}
+                  </h1>
+                  <p style={{ color: 'white', fontSize: 56, fontWeight: 900, margin: '0 0 24px 0' }}>
+                    {pr.weight}<span style={{ fontSize: 24, opacity: 0.8 }}>kg</span>
                   </p>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <p style={{ fontSize: 16, fontWeight: 800 }}>{pr.weight}kg</p>
-                  <p style={{ fontSize: 11, color: 'var(--text-secondary)' }}>× {pr.reps} reps</p>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 32 }}>
+                    <div style={{ width: 24, height: 24, borderRadius: 6, background: '#C8F135', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, color: '#0F172A' }}>W</div>
+                    <span style={{ color: '#C8F135', fontSize: 16, fontWeight: 700 }}>WorkoutSplit</span>
+                  </div>
                 </div>
               </div>
             ))}

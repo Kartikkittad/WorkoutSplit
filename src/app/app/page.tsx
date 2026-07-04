@@ -1,11 +1,12 @@
 'use client';
-
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+
 import ProgressCircle from '@/components/ProgressCircle';
 import ExerciseCard from '@/components/ExerciseCard';
+import LineChart from '@/components/LineChart';
 import { EXERCISES } from '@/lib/exercises';
-import { Workout } from '@/lib/types';
+import { Workout, BodyWeightEntry } from '@/lib/types';
 
 /* ── SVG Icon Components (Filled) ── */
 const BellIcon = ({ size = 20 }: { size?: number }) => (
@@ -81,18 +82,40 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [userName, setUserName] = useState('Athlete');
   const [activeSplit, setActiveSplit] = useState<{ name: string; days: { name: string; exerciseIds: string[] }[] } | null>(null);
+  const [bodyWeights, setBodyWeights] = useState<BodyWeightEntry[]>([]);
+  const [currentWeightInput, setCurrentWeightInput] = useState<string>('');
 
   useEffect(() => {
     import('@/lib/seed').then(({ seedSampleData }) => {
       seedSampleData();
       return import('@/lib/storage');
-    }).then(({ getWorkouts, getActiveSplit, getSettings }) => {
+    }).then(({ getWorkouts, getActiveSplit, getSettings, getBodyWeights }) => {
       setWorkouts(getWorkouts());
       setActiveSplit(getActiveSplit());
       setUserName(getSettings().name);
+      
+      const weights = getBodyWeights();
+      setBodyWeights(weights);
+      
+      // Pre-fill input if there's a weight logged today
+      const today = new Date().toISOString().split('T')[0];
+      const todaysWeight = weights.find(w => w.date === today);
+      if (todaysWeight) {
+        setCurrentWeightInput(todaysWeight.weight.toString());
+      }
+      
       setLoading(false);
     });
   }, []);
+
+  const handleSaveBodyWeight = async () => {
+    const weight = parseFloat(currentWeightInput);
+    if (isNaN(weight) || weight <= 0) return;
+    
+    const { saveBodyWeight, getBodyWeights } = await import('@/lib/storage');
+    saveBodyWeight(weight);
+    setBodyWeights(getBodyWeights());
+  };
 
   // Calculate today's stats
   const today = new Date().toDateString();
@@ -170,6 +193,66 @@ export default function HomePage() {
         >
           <span style={{ fontSize: 16, fontWeight: 800 }}>{completionPercent}%</span>
         </ProgressCircle>
+      </div>
+
+      {/* ── Body Weight Tracker ── */}
+      <div className="card" style={{ marginBottom: 16, padding: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <h2 style={{ fontSize: 16, fontWeight: 700 }}>Body Weight</h2>
+          <span className="text-secondary" style={{ fontSize: 13, fontWeight: 600 }}>Trend (Last 7d)</span>
+        </div>
+        
+        {bodyWeights.length > 1 ? (
+          <div style={{ marginBottom: 16 }}>
+            <LineChart 
+              data={bodyWeights.map(w => ({ label: new Date(w.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), value: w.weight }))} 
+              color="#38bdf8" 
+              height={80} 
+              hideAxes={true} 
+            />
+          </div>
+        ) : (
+          <p className="text-secondary" style={{ fontSize: 13, marginBottom: 16 }}>Log more weights to see your trend!</p>
+        )}
+        
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input
+            type="number"
+            step="0.1"
+            value={currentWeightInput}
+            onChange={(e) => setCurrentWeightInput(e.target.value)}
+            placeholder="Weight (kg)"
+            style={{
+              flex: 1,
+              background: 'var(--input-bg)',
+              border: 'none',
+              borderRadius: 12,
+              padding: '0 16px',
+              fontSize: 16,
+              fontWeight: 600,
+              color: 'var(--text-primary)',
+              outline: 'none',
+              fontFamily: 'inherit',
+            }}
+          />
+          <button
+            onClick={handleSaveBodyWeight}
+            disabled={!currentWeightInput || isNaN(parseFloat(currentWeightInput))}
+            style={{
+              background: 'var(--primary)',
+              color: '#0F172A',
+              border: 'none',
+              borderRadius: 12,
+              padding: '0 20px',
+              fontWeight: 700,
+              fontSize: 14,
+              cursor: 'pointer',
+              opacity: (!currentWeightInput || isNaN(parseFloat(currentWeightInput))) ? 0.5 : 1,
+            }}
+          >
+            Log Weight
+          </button>
+        </div>
       </div>
 
       {/* ── Create Split CTA (if no active split) ── */}

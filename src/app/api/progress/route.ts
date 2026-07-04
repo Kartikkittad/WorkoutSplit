@@ -91,6 +91,7 @@ export async function GET(request: NextRequest) {
 
     const prs: PersonalRecord[] = Array.from(prMap.entries()).map(
       ([reps, info]) => ({
+        exerciseId,
         exerciseName: info.exerciseName,
         weight: info.weight,
         reps,
@@ -170,6 +171,7 @@ function computeProgressFromMemory(exerciseId: string) {
 
   const prs: PersonalRecord[] = Array.from(prMap.entries()).map(
     ([reps, info]) => ({
+      exerciseId,
       exerciseName: info.exerciseName,
       weight: info.weight,
       reps,
