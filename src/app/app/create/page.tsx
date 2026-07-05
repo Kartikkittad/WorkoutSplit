@@ -71,13 +71,13 @@ export default function CreateSplitPage() {
     setSaving(true);
     try {
       const { saveSplit, setActiveSplit } = await import('@/lib/storage');
-      const split = saveSplit({
+      const split = await saveSplit({
         id: '',
         name: splitName,
         days,
         createdAt: new Date().toISOString(),
       });
-      setActiveSplit(split.id);
+      await setActiveSplit(split.id);
       router.push('/app');
     } catch {
       setSaving(false);

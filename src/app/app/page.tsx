@@ -7,6 +7,7 @@ import ExerciseCard from '@/components/ExerciseCard';
 import LineChart from '@/components/LineChart';
 import { EXERCISES } from '@/lib/exercises';
 import { Workout, BodyWeightEntry } from '@/lib/types';
+import { useSettings } from '@/components/SettingsContext';
 
 /* ── SVG Icon Components (Filled) ── */
 const BellIcon = ({ size = 20 }: { size?: number }) => (
@@ -47,6 +48,16 @@ const LayersIcon = ({ size = 18, color = 'currentColor' }: { size?: number; colo
   </svg>
 );
 
+const ScaleIcon = ({ size = 18, color = 'currentColor' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/>
+    <path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/>
+    <path d="M7 21h10"/>
+    <path d="M12 3v18"/>
+    <path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/>
+  </svg>
+);
+
 /* ── Category Icon helper ── */
 function getCategoryIcon(category: string) {
   switch (category) {
@@ -78,9 +89,9 @@ function getCategoryIcon(category: string) {
 
 export default function HomePage() {
   const router = useRouter();
+  const { weightUnit, userName } = useSettings();
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [loading, setLoading] = useState(true);
-  const [userName, setUserName] = useState('Athlete');
   const [activeSplit, setActiveSplit] = useState<{ name: string; days: { name: string; exerciseIds: string[] }[] } | null>(null);
   const [bodyWeights, setBodyWeights] = useState<BodyWeightEntry[]>([]);
   const [currentWeightInput, setCurrentWeightInput] = useState<string>('');
@@ -95,15 +106,16 @@ export default function HomePage() {
   }, [bodyWeights, weightTimeframe]);
 
   useEffect(() => {
-    import('@/lib/seed').then(({ seedSampleData }) => {
-      seedSampleData();
-      return import('@/lib/storage');
-    }).then(({ getWorkouts, getActiveSplit, getSettings, getBodyWeights }) => {
-      setWorkouts(getWorkouts());
-      setActiveSplit(getActiveSplit());
-      setUserName(getSettings().name);
+    import('@/lib/storage').then(async ({ migrateFromLocalStorage }) => {
+      await migrateFromLocalStorage();
+      const { seedSampleData } = await import('@/lib/seed');
+      await seedSampleData();
       
-      const weights = getBodyWeights();
+      const { getWorkouts, getActiveSplit, getBodyWeights } = await import('@/lib/storage');
+      setWorkouts(await getWorkouts());
+      setActiveSplit(await getActiveSplit());
+      
+      const weights = await getBodyWeights();
       setBodyWeights(weights);
       
       // Pre-fill input if there's a weight logged today
@@ -123,8 +135,8 @@ export default function HomePage() {
     if (isNaN(weight) || weight <= 0) return;
     
     const { saveBodyWeight, getBodyWeights } = await import('@/lib/storage');
-    saveBodyWeight(weight);
-    setBodyWeights(getBodyWeights());
+    await saveBodyWeight(weight);
+    setBodyWeights(await getBodyWeights());
   };
 
   // Calculate today's stats
@@ -245,7 +257,12 @@ export default function HomePage() {
             />
           </div>
         ) : (
-          <p className="text-secondary" style={{ fontSize: 13, marginBottom: 16 }}>Log more weights to see your trend!</p>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px 16px', textAlign: 'center', marginBottom: 16 }}>
+            <div style={{ marginBottom: 12, filter: 'drop-shadow(0 4px 16px rgba(200, 241, 53, 0.4))' }}>
+              <ScaleIcon size={48} color="var(--lime)" />
+            </div>
+            <p className="text-secondary" style={{ fontSize: 14, fontWeight: 500 }}>Log your weight today to start tracking</p>
+          </div>
         )}
         
         <div style={{ display: 'flex', gap: 8, width: '100%' }}>
@@ -254,7 +271,7 @@ export default function HomePage() {
             step="0.1"
             value={currentWeightInput}
             onChange={(e) => setCurrentWeightInput(e.target.value)}
-            placeholder="Weight (kg)"
+            placeholder={`Weight (${weightUnit})`}
             style={{
               flex: 1,
               minWidth: 0,
@@ -296,29 +313,28 @@ export default function HomePage() {
 
       {/* ── Create Split CTA (if no active split) ── */}
       {!loading && !activeSplit && (
-        <div
-          className="card"
-          onClick={() => router.push('/app/create')}
-          style={{
-            background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
-            color: 'white', marginBottom: 16, cursor: 'pointer',
-            display: 'flex', alignItems: 'center', gap: 16,
-          }}
-          role="button"
-          tabIndex={0}
-        >
-          <div style={{
-            width: 48, height: 48, borderRadius: 14, background: 'rgba(200,241,53,0.15)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-          }}>
-            <svg width={24} height={24} viewBox="0 0 24 24" fill="#C8F135">
-              <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
-            </svg>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 16px', textAlign: 'center' }}>
+          <div style={{ marginBottom: 16, filter: 'drop-shadow(0 8px 24px rgba(200, 241, 53, 0.5))' }}>
+            <DumbbellIcon size={64} color="var(--lime)" />
           </div>
-          <div>
-            <p style={{ fontSize: 16, fontWeight: 700, marginBottom: 2 }}>Create Your First Split</p>
-            <p style={{ fontSize: 12, opacity: 0.7 }}>Set up your workout routine to get started</p>
-          </div>
+          <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8, color: 'var(--text-primary)' }}>No workout yet</h2>
+          <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 24 }}>Create your first split to get started</p>
+          <button
+            onClick={() => router.push('/app/create')}
+            style={{
+              padding: '16px 32px',
+              backgroundColor: 'var(--lime)',
+              color: 'var(--text-primary)',
+              fontWeight: 700,
+              fontSize: 16,
+              border: 'none',
+              borderRadius: 9999,
+              cursor: 'pointer',
+              boxShadow: '0 4px 14px rgba(200, 241, 53, 0.4)',
+            }}
+          >
+            Create Split
+          </button>
         </div>
       )}
 

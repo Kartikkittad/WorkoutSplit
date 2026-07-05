@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Orbitron } from 'next/font/google';
 import './globals.css';
+import { SettingsProvider } from '@/components/SettingsContext';
 
 const orbitron = Orbitron({ variable: '--font-orbitron', subsets: ['latin'], weight: ['400', '500', '600', '700', '800', '900'] });
 
@@ -21,7 +22,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <link rel="apple-touch-icon" href="/icon-192.png" />
       </head>
       <body>
-        {children}
+        <SettingsProvider>
+          {children}
+        </SettingsProvider>
         <script
           dangerouslySetInnerHTML={{
             __html: `

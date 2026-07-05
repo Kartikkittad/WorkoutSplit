@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useSettings } from './SettingsContext';
 
 interface WorkoutSet {
   weight: number;
@@ -46,6 +47,7 @@ function formatTime(dateStr: string): string {
 
 export default function WorkoutCard({ workout, onDelete }: WorkoutCardProps) {
   const [expanded, setExpanded] = useState(false);
+  const { weightUnit } = useSettings();
   const { name, startedAt, exercises, durationMinutes } = workout;
 
   const totalSets = exercises.reduce((sum, ex) => sum + ex.sets.length, 0);
@@ -137,7 +139,7 @@ export default function WorkoutCard({ workout, onDelete }: WorkoutCardProps) {
                     opacity: set.completed ? 1 : 0.5,
                   }}>
                     <span style={{ width: 36, color: 'var(--text-secondary)', fontSize: 12 }}>{j + 1}</span>
-                    <span style={{ flex: 1 }}>{set.weight > 0 ? `${set.weight} kg` : '-'}</span>
+                    <span style={{ flex: 1 }}>{set.weight > 0 ? `${set.weight} ${weightUnit}` : '-'}</span>
                     <span style={{ flex: 1 }}>{set.reps}</span>
                     <span style={{ width: 24, display: 'flex', justifyContent: 'center' }}>
                       {set.completed ? (

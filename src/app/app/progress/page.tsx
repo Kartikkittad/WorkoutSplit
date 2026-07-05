@@ -5,9 +5,19 @@ import { useSearchParams } from 'next/navigation';
 import LineChart from '@/components/LineChart';
 import { EXERCISES } from '@/lib/exercises';
 import { ProgressDataPoint, PersonalRecord } from '@/lib/types';
+import { useSettings } from '@/components/SettingsContext';
+
+const BarChartIcon = ({ size = 24, color = 'currentColor' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <line x1="12" x2="12" y1="20" y2="10"/>
+    <line x1="18" x2="18" y1="20" y2="4"/>
+    <line x1="6" x2="6" y1="20" y2="16"/>
+  </svg>
+);
 
 function ProgressContent() {
   const searchParams = useSearchParams();
+  const { weightUnit } = useSettings();
   const initialExercise = searchParams.get('exercise') || EXERCISES[0].id;
   const [selectedExercise, setSelectedExercise] = useState(initialExercise);
   const [data, setData] = useState<ProgressDataPoint[]>([]);
@@ -25,8 +35,8 @@ function ProgressContent() {
 
   useEffect(() => {
     setLoading(true);
-    import('@/lib/storage').then(({ getWorkouts, getPersonalRecords }) => {
-      const workouts = getWorkouts();
+    import('@/lib/storage').then(async ({ getWorkouts, getPersonalRecords }) => {
+      const workouts = await getWorkouts();
       // Calculate progress data for selected exercise
       const exerciseData: Record<string, ProgressDataPoint> = {};
 
@@ -52,7 +62,7 @@ function ProgressContent() {
       const sorted = Object.values(exerciseData).sort((a, b) => a.date.localeCompare(b.date));
       setData(sorted);
       
-      const allPrs = getPersonalRecords();
+      const allPrs = await getPersonalRecords();
       setPrs(allPrs);
       setLoading(false);
     });
@@ -86,7 +96,7 @@ function ProgressContent() {
             await navigator.share({
               files: [file],
               title: 'New Personal Record!',
-              text: `Just hit a new PR on ${pr.exerciseName}: ${pr.weight}kg! 💪`,
+              text: `Just hit a new PR on ${pr.exerciseName}: ${pr.weight}${weightUnit}! 💪`,
             });
           } catch (e) {
             console.error('Share failed', e);
@@ -131,8 +141,8 @@ function ProgressContent() {
   const totalSetsAll = filteredData.reduce((sum, d) => sum + d.totalSets, 0);
 
   const metricLabels: Record<string, string> = {
-    maxWeight: 'Max Weight (kg)',
-    totalVolume: 'Volume (kg)',
+    maxWeight: `Max Weight (${weightUnit})`,
+    totalVolume: `Volume (${weightUnit})`,
     totalSets: 'Sets',
   };
 
@@ -338,6 +348,14 @@ function ProgressContent() {
           <div style={{ height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <p className="text-secondary">Loading...</p>
           </div>
+        ) : chartData.length < 2 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 220, textAlign: 'center' }}>
+            <div style={{ marginBottom: 16, filter: 'drop-shadow(0 8px 24px rgba(200, 241, 53, 0.4))' }}>
+              <BarChartIcon size={64} color="var(--lime)" />
+            </div>
+            <p style={{ fontWeight: 700, fontSize: 18, marginBottom: 8, color: 'var(--text-primary)' }}>Not enough data yet</p>
+            <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Log at least 2 sessions of this exercise to see your progress chart</p>
+          </div>
         ) : (
           <LineChart data={chartData} color="#C8F135" height={220} />
         )}
@@ -347,11 +365,11 @@ function ProgressContent() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 24 }}>
         <div className="card" style={{ textAlign: 'center', padding: 16 }}>
           <p style={{ fontSize: 24, fontWeight: 800, lineHeight: 1 }}>{bestWeight}</p>
-          <p className="text-secondary" style={{ fontSize: 11, marginTop: 6 }}>Best (kg)</p>
+          <p className="text-secondary" style={{ fontSize: 11, marginTop: 6 }}>Best ({weightUnit})</p>
         </div>
         <div className="card" style={{ textAlign: 'center', padding: 16 }}>
           <p style={{ fontSize: 24, fontWeight: 800, lineHeight: 1 }}>{totalVol.toLocaleString()}</p>
-          <p className="text-secondary" style={{ fontSize: 11, marginTop: 6 }}>Volume (kg)</p>
+          <p className="text-secondary" style={{ fontSize: 11, marginTop: 6 }}>Volume ({weightUnit})</p>
         </div>
         <div className="card" style={{ textAlign: 'center', padding: 16 }}>
           <p style={{ fontSize: 24, fontWeight: 800, lineHeight: 1 }}>{totalSetsAll}</p>
@@ -495,7 +513,7 @@ function ProgressContent() {
                         <p style={{ fontSize: 80, fontWeight: 900, margin: 0, lineHeight: 0.9, color: '#C8F135', letterSpacing: -4, textShadow: prImages[pr.id || pr.exerciseId] ? '0 8px 24px rgba(0,0,0,0.8)' : '0 0 60px rgba(200,241,53,0.2)' }}>
                           {pr.weight}
                         </p>
-                        <span style={{ fontSize: 32, color: 'white', fontWeight: 800, opacity: 0.9, textShadow: prImages[pr.id || pr.exerciseId] ? '0 4px 12px rgba(0,0,0,0.5)' : 'none' }}>kg</span>
+                        <span style={{ fontSize: 32, color: 'white', fontWeight: 800, opacity: 0.9, textShadow: prImages[pr.id || pr.exerciseId] ? '0 4px 12px rgba(0,0,0,0.5)' : 'none' }}>{weightUnit}</span>
                       </div>
                     </div>
 

@@ -4,14 +4,21 @@ import { useState, useEffect } from 'react';
 import WorkoutCard from '@/components/WorkoutCard';
 import { Workout } from '@/lib/types';
 
+const ClipboardIcon = ({ size = 24, color = 'currentColor' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <rect width="8" height="4" x="8" y="2" rx="1" ry="1"/>
+    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+  </svg>
+);
+
 export default function HistoryPage() {
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'week' | 'month' | 'all'>('all');
 
   useEffect(() => {
-    import('@/lib/storage').then(({ getWorkouts }) => {
-      setWorkouts(getWorkouts());
+    import('@/lib/storage').then(async ({ getWorkouts }) => {
+      setWorkouts(await getWorkouts());
       setLoading(false);
     });
   }, []);
@@ -115,12 +122,12 @@ export default function HistoryPage() {
           <p style={{ fontSize: 16 }}>Loading...</p>
         </div>
       ) : filteredWorkouts.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '48px 20px' }}>
-          <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'center' }}>
-            <svg width={48} height={48} viewBox="0 0 24 24" fill="var(--text-secondary)"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-1 7V3.5L18.5 9H13zM8 13h8v1.5H8V13zm0 3h8v1.5H8V16z"/></svg>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 16px', textAlign: 'center' }}>
+          <div style={{ marginBottom: 16, filter: 'drop-shadow(0 8px 24px rgba(200, 241, 53, 0.4))' }}>
+            <ClipboardIcon size={64} color="var(--lime)" />
           </div>
-          <p style={{ fontWeight: 600, fontSize: 18, marginBottom: 4 }}>No workouts yet</p>
-          <p className="text-secondary">Complete a workout to see it here</p>
+          <p style={{ fontWeight: 700, fontSize: 20, marginBottom: 8, color: 'var(--text-primary)' }}>No workouts logged yet</p>
+          <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Finish your first workout to see it here</p>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -131,7 +138,7 @@ export default function HistoryPage() {
               onDelete={async () => {
                 if (workout.id) {
                   const { deleteWorkout } = await import('@/lib/storage');
-                  deleteWorkout(String(workout.id));
+                  await deleteWorkout(String(workout.id));
                   setWorkouts(prev => prev.filter(w => w.id !== workout.id));
                 }
               }}

@@ -5,6 +5,27 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { CATEGORIES, getExercisesByCategory, type ExerciseDefinition } from '@/lib/exercises';
 import type { WorkoutSet } from '@/lib/types';
 import RestTimer from '@/components/RestTimer';
+import { useSettings } from '@/components/SettingsContext';
+
+/* ── SVG Icons ── */
+const FlameIcon = ({ size = 18, color = 'currentColor' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+    <path d="M12 23c-4.97 0-9-3.58-9-8 0-2.52 1.17-4.7 2.5-6.37A25.16 25.16 0 0 0 8.37 4.9a1 1 0 0 1 1.63.37c.43 1.11 1.13 2.34 2.16 3.3.08-.9.39-1.96 1.12-3.06A10.15 10.15 0 0 1 15.67.79a1 1 0 0 1 1.53.78c.05 1.42.52 3.13 1.55 4.68C20.13 8.3 21 10.53 21 13c0 5.5-4.03 10-9 10z" />
+  </svg>
+);
+
+const TargetIcon = ({ size = 18, color = 'currentColor' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+    <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm-1 14.5v-9l7 4.5-7 4.5z" />
+  </svg>
+);
+
+const CheckCircleIcon = ({ size = 24, color = 'currentColor' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+    <polyline points="22 4 12 14.01 9 11.01"/>
+  </svg>
+);
 
 /* ── SVG Category Icons ── */
 function getCategoryIcon(category: string, size = 20) {
@@ -65,6 +86,7 @@ interface AddedExercise {
 function LogWorkoutContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { weightUnit } = useSettings();
 
   const [workoutName, setWorkoutName] = useState('My Workout');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
@@ -76,6 +98,7 @@ function LogWorkoutContent() {
   const [initialized, setInitialized] = useState(false);
   const [exerciseHistory, setExerciseHistory] = useState<Record<string, { maxWeight: number, lastWeight: number, lastReps: number, lastSets: number }>>({});
   const [celebration, setCelebration] = useState<{ show: boolean; text: string; subtext: string }>({ show: false, text: '', subtext: '' });
+  const [workoutFinishedStats, setWorkoutFinishedStats] = useState<{sets: number, volume: number, duration: number} | null>(null);
 
   /* — auto-add exercises from URL params and load history -------------------- */
   useEffect(() => {
@@ -134,8 +157,8 @@ function LogWorkoutContent() {
       );
     }
 
-    import('@/lib/storage').then(({ getWorkouts }) => {
-      const workouts = getWorkouts();
+    import('@/lib/storage').then(async ({ getWorkouts }) => {
+      const workouts = await getWorkouts();
       const history: Record<string, { maxWeight: number, lastWeight: number, lastReps: number, lastSets: number }> = {};
       
       // Sort workouts by date ascending so we process oldest to newest
@@ -253,16 +276,16 @@ function LogWorkoutContent() {
           const diff = setWeight - previousMax;
           setCelebration({
             show: true,
-            text: `New PR! ${exercise?.exerciseName} — ${setWeight}kg`,
-            subtext: previousMax > 0 ? `That's +${diff}kg from your previous best!` : `Your first PR for this exercise!`,
+            text: `New PR! ${exercise?.exerciseName} — ${setWeight}${weightUnit}`,
+            subtext: previousMax > 0 ? `That's +${diff}${weightUnit} from your previous best!` : `Your first PR for this exercise!`,
           });
           
           // Auto-hide celebration after 3s
           setTimeout(() => setCelebration(c => ({ ...c, show: false })), 3000);
           
           // Save PR asynchronously
-          import('@/lib/storage').then(({ savePersonalRecord }) => {
-            savePersonalRecord({
+          import('@/lib/storage').then(async ({ savePersonalRecord }) => {
+            await savePersonalRecord({
               exerciseId: exerciseId,
               exerciseName: exercise?.exerciseName || '',
               weight: setWeight,
@@ -327,19 +350,35 @@ function LogWorkoutContent() {
 
     try {
       const { saveWorkout } = await import('@/lib/storage');
+      
+      let setsCount = 0;
+      let totalVol = 0;
+      addedExercises.forEach(ex => {
+        ex.sets.forEach(s => {
+          if (s.completed) {
+            setsCount++;
+            totalVol += s.weight * s.reps;
+          }
+        });
+      });
+      const duration = Math.round((Date.now() - startTime.getTime()) / 60000);
+
       const workout = {
         name: workoutName,
         startedAt: startTime.toISOString(),
         completedAt: new Date().toISOString(),
-        durationMinutes: Math.round((Date.now() - startTime.getTime()) / 60000),
+        durationMinutes: duration,
         exercises: addedExercises.map((ex) => ({
           exerciseId: ex.exerciseId,
           exerciseName: ex.exerciseName,
           sets: ex.sets,
         })),
       };
-      saveWorkout(workout);
-      router.push('/app/history');
+      await saveWorkout(workout);
+      setWorkoutFinishedStats({ sets: setsCount, volume: totalVol, duration });
+      setTimeout(() => {
+        router.push('/app');
+      }, 5000);
     } catch {
       setSaving(false);
     }
@@ -347,7 +386,7 @@ function LogWorkoutContent() {
 
   /* — render ----------------------------------------------- */
   return (
-    <div className="app-container" style={{ padding: '16px 16px 160px' }}>
+    <div className="app-container" style={{ padding: '16px 0 160px' }}>
       {/* ─── Page Header ─── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
         <button
@@ -431,25 +470,40 @@ function LogWorkoutContent() {
 
                 {/* Progressive Overload Tracker */}
                 <div style={{
-                  background: 'rgba(200, 241, 53, 0.15)',
-                  border: '1px solid rgba(200, 241, 53, 0.5)',
+                  background: 'rgba(200, 241, 53, 0.05)',
+                  border: '1px solid rgba(200, 241, 53, 0.2)',
                   borderRadius: 12,
-                  padding: '10px 12px',
+                  padding: '12px',
                   marginBottom: 16,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px'
                 }}>
                   {exerciseHistory[ex.exerciseId]?.lastSets > 0 ? (
                     <>
-                      <p style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 600, marginBottom: 2 }}>
-                        Last time: {exerciseHistory[ex.exerciseId].lastSets} sets × {exerciseHistory[ex.exerciseId].lastReps} reps × {exerciseHistory[ex.exerciseId].lastWeight}kg
-                      </p>
-                      <p style={{ fontSize: 13, color: '#4d6100', fontWeight: 800 }}>
-                        Target today: {exerciseHistory[ex.exerciseId].lastSets} sets × {exerciseHistory[ex.exerciseId].lastReps} reps × {exerciseHistory[ex.exerciseId].lastWeight + 2.5}kg 🎯
-                      </p>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Last Time</span>
+                        <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)' }}>
+                          {exerciseHistory[ex.exerciseId].lastSets} × {exerciseHistory[ex.exerciseId].lastReps} × {exerciseHistory[ex.exerciseId].lastWeight}{weightUnit}
+                        </span>
+                      </div>
+                      
+                      <div style={{ height: 1, background: 'rgba(200, 241, 53, 0.15)', borderRadius: 1 }} />
+                      
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--lime)', textTransform: 'uppercase', letterSpacing: 0.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <TargetIcon size={14} color="var(--lime)" /> Target
+                        </span>
+                        <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
+                          {exerciseHistory[ex.exerciseId].lastSets} × {exerciseHistory[ex.exerciseId].lastReps} × {exerciseHistory[ex.exerciseId].lastWeight + 2.5}{weightUnit}
+                        </span>
+                      </div>
                     </>
                   ) : (
-                    <p style={{ fontSize: 12, color: '#4d6100', fontWeight: 700, margin: 0 }}>
-                      First time doing this — give it your best! 🚀
-                    </p>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '4px 0' }}>
+                      <FlameIcon size={16} color="var(--lime)" />
+                      <span style={{ fontSize: 13, color: 'var(--lime)', fontWeight: 600 }}>First time — set your baseline!</span>
+                    </div>
                   )}
                 </div>
 
@@ -461,7 +515,7 @@ function LogWorkoutContent() {
                   <div style={{ width: 70, textAlign: 'center' }}>
                     <span className="text-secondary" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>Weight</span>
                   </div>
-                  <span style={{ fontSize: 13, flexShrink: 0, visibility: 'hidden' }}>kg</span>
+                  <span style={{ fontSize: 13, flexShrink: 0, visibility: 'hidden' }}>{weightUnit}</span>
                   <div style={{ width: 70, textAlign: 'center' }}>
                     <span className="text-secondary" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>Reps</span>
                   </div>
@@ -513,7 +567,7 @@ function LogWorkoutContent() {
                         outline: 'none',
                       }}
                     />
-                    <span className="text-secondary" style={{ fontSize: 13, flexShrink: 0 }}>kg</span>
+                    <span className="text-secondary" style={{ fontSize: 13, flexShrink: 0 }}>{weightUnit}</span>
 
                     {/* Reps input */}
                     <input
@@ -885,9 +939,72 @@ function LogWorkoutContent() {
                 minWidth: 200,
               }}
             >
-              Let&apos;s gooo 🔥
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                <span>Let's gooo</span>
+                <FlameIcon size={18} color="#0F172A" />
+              </div>
             </button>
           </div>
+        </div>
+      )}
+
+      {/* ─── Workout Completion Overlay ─── */}
+      {workoutFinishedStats && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: '#0F172A',
+            zIndex: 10000,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 24,
+            textAlign: 'center',
+            animation: 'fadeIn 0.3s ease-out forwards',
+          }}
+        >
+          <div style={{ marginBottom: 24, animation: 'bounce 1s ease-out', filter: 'drop-shadow(0 0 32px rgba(200, 241, 53, 0.6))' }}>
+            <CheckCircleIcon size={72} color="var(--lime)" />
+          </div>
+          <h1 style={{ color: 'white', fontSize: 32, fontWeight: 800, marginBottom: 32, lineHeight: 1.1 }}>Workout Complete!</h1>
+          
+          <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 24, padding: '32px 24px', width: '100%', maxWidth: 320, marginBottom: 40, border: '1px solid rgba(255,255,255,0.1)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+              <div>
+                <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Volume</p>
+                <p style={{ color: 'white', fontSize: 24, fontWeight: 700 }}>{workoutFinishedStats.volume.toLocaleString()}</p>
+              </div>
+              <div>
+                <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Sets</p>
+                <p style={{ color: 'white', fontSize: 24, fontWeight: 700 }}>{workoutFinishedStats.sets}</p>
+              </div>
+              <div style={{ gridColumn: '1 / -1' }}>
+                <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Duration</p>
+                <p style={{ color: 'white', fontSize: 24, fontWeight: 700 }}>{workoutFinishedStats.duration} min</p>
+              </div>
+            </div>
+          </div>
+          
+          <button
+            onClick={() => router.push('/app')}
+            style={{
+              width: '100%',
+              maxWidth: 320,
+              padding: '16px',
+              borderRadius: 9999,
+              border: 'none',
+              background: 'var(--lime)',
+              color: 'var(--text-primary)',
+              fontWeight: 700,
+              fontSize: 16,
+              cursor: 'pointer',
+              boxShadow: '0 8px 32px rgba(200, 241, 53, 0.2)',
+            }}
+          >
+            Back to Home
+          </button>
         </div>
       )}
     </div>

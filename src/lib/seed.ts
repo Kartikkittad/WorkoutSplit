@@ -226,35 +226,29 @@ function generateSplit(): { split: Split; id: string } {
  * Injects realistic sample workout and split data into localStorage.
  * Skips seeding if there are already 3 or more workouts stored.
  */
-export function seedSampleData(): void {
+import { db } from './dexie';
+
+export async function seedSampleData(): Promise<void> {
   if (typeof window === 'undefined') return;
 
   try {
-    const existing = localStorage.getItem(WORKOUTS_KEY);
-    if (existing) {
-      const parsed = JSON.parse(existing) as unknown[];
-      if (Array.isArray(parsed) && parsed.length >= 3) return; // already has data
-    }
+    const count = await db.workouts.count();
+    if (count >= 3) return; // already has data
   } catch {
-    // corrupted data — overwrite it
+    // skip on error
   }
 
   // Seed workouts
   const workouts = generateWorkouts();
-  localStorage.setItem(WORKOUTS_KEY, JSON.stringify(workouts));
+  await db.workouts.bulkPut(workouts);
 
   // Seed split (only if none exist)
   try {
-    const existingSplits = localStorage.getItem(SPLITS_KEY);
-    if (existingSplits) {
-      const parsed = JSON.parse(existingSplits) as unknown[];
-      if (Array.isArray(parsed) && parsed.length > 0) return;
-    }
-  } catch {
-    // overwrite
-  }
+    const splitCount = await db.splits.count();
+    if (splitCount > 0) return;
+  } catch {}
 
   const { split, id } = generateSplit();
-  localStorage.setItem(SPLITS_KEY, JSON.stringify([split]));
-  localStorage.setItem(ACTIVE_SPLIT_KEY, id);
+  await db.splits.put(split);
+  await db.settings.put({ key: 'active_split', value: id });
 }

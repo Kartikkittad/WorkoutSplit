@@ -1,14 +1,5 @@
-import type { Workout, Split, BodyWeightEntry, PersonalRecord } from "@/lib/types";
-
-// ── Storage Keys ────────────────────────────────────────────────────────────
-const STORAGE_KEYS = {
-  WORKOUTS: "workoutsplit_workouts",
-  SPLITS: "workoutsplit_splits",
-  ACTIVE_SPLIT: "workoutsplit_active_split",
-  SETTINGS: "workoutsplit_settings",
-  BODYWEIGHT: "workoutsplit_bodyweight",
-  PRS: "workoutsplit_prs",
-} as const;
+import { Workout, Split, BodyWeightEntry, PersonalRecord } from "@/lib/types";
+import { db } from "./dexie";
 
 // ── Types ───────────────────────────────────────────────────────────────────
 interface Settings {
@@ -19,191 +10,164 @@ const DEFAULT_SETTINGS: Settings = { name: "Athlete" };
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
-/** Returns true when running in a browser (not during SSR). */
-function isBrowser(): boolean {
-  return typeof window !== "undefined";
-}
-
-/** Generates a unique string id using a timestamp + random suffix. */
 export function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
 }
 
-/** Type-safe wrapper around localStorage.getItem + JSON.parse. */
-function readStore<T>(key: string, fallback: T): T {
-  if (!isBrowser()) return fallback;
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T) : fallback;
-  } catch {
-    return fallback;
-  }
-}
+/** 
+ * One-time migration from localStorage to Dexie.
+ * We can call this during app initialization.
+ */
+export async function migrateFromLocalStorage() {
+  const isBrowser = typeof window !== "undefined";
+  if (!isBrowser) return;
+  
+  const STORAGE_KEYS = {
+    WORKOUTS: "workoutsplit_workouts",
+    SPLITS: "workoutsplit_splits",
+    ACTIVE_SPLIT: "workoutsplit_active_split",
+    SETTINGS: "workoutsplit_settings",
+    BODYWEIGHT: "workoutsplit_bodyweight",
+    PRS: "workoutsplit_prs",
+  };
 
-/** Type-safe wrapper around localStorage.setItem + JSON.stringify. */
-function writeStore<T>(key: string, value: T): void {
-  if (!isBrowser()) return;
+  const migratedKey = "workoutsplit_migrated_to_dexie";
+  if (localStorage.getItem(migratedKey)) return;
+
   try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch {
-    // Storage quota exceeded or other write error — fail silently.
+    const workouts = JSON.parse(localStorage.getItem(STORAGE_KEYS.WORKOUTS) || "[]");
+    if (workouts.length) await db.workouts.bulkPut(workouts);
+
+    const splits = JSON.parse(localStorage.getItem(STORAGE_KEYS.SPLITS) || "[]");
+    if (splits.length) await db.splits.bulkPut(splits);
+
+    const activeSplit = localStorage.getItem(STORAGE_KEYS.ACTIVE_SPLIT);
+    if (activeSplit) await db.settings.put({ key: 'active_split', value: activeSplit });
+
+    const settings = JSON.parse(localStorage.getItem(STORAGE_KEYS.SETTINGS) || "null");
+    if (settings) {
+      for (const [k, v] of Object.entries(settings)) {
+        await db.settings.put({ key: k, value: v });
+      }
+    }
+
+    const bodyweights = JSON.parse(localStorage.getItem(STORAGE_KEYS.BODYWEIGHT) || "[]");
+    if (bodyweights.length) await db.bodyweights.bulkPut(bodyweights);
+
+    const prs = JSON.parse(localStorage.getItem(STORAGE_KEYS.PRS) || "[]");
+    if (prs.length) await db.prs.bulkPut(prs);
+
+    localStorage.setItem(migratedKey, "true");
+  } catch (e) {
+    console.error("Migration failed:", e);
   }
 }
 
 // ── Workout Functions ───────────────────────────────────────────────────────
 
-/** Get all workouts sorted by startedAt descending (most recent first). */
-export function getWorkouts(): Workout[] {
-  const workouts = readStore<Workout[]>(STORAGE_KEYS.WORKOUTS, []);
+export async function getWorkouts(): Promise<Workout[]> {
+  const workouts = await db.workouts.toArray();
   return workouts.sort(
     (a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime()
   );
 }
 
-/**
- * Save a workout to localStorage.
- * Auto-generates an id if one is not already set.
- * If a workout with the same id exists it will be updated; otherwise it is appended.
- */
-export function saveWorkout(workout: Workout): Workout {
-  const workouts = readStore<Workout[]>(STORAGE_KEYS.WORKOUTS, []);
-
+export async function saveWorkout(workout: Workout): Promise<Workout> {
   const saved: Workout = {
     ...workout,
     id: workout.id || generateId(),
   };
-
-  const idx = workouts.findIndex((w) => w.id === saved.id);
-  if (idx !== -1) {
-    workouts[idx] = saved;
-  } else {
-    workouts.push(saved);
-  }
-
-  writeStore(STORAGE_KEYS.WORKOUTS, workouts);
+  await db.workouts.put(saved);
   return saved;
 }
 
-/** Find a single workout by its id. Returns null when not found. */
-export function getWorkoutById(id: string): Workout | null {
-  const workouts = readStore<Workout[]>(STORAGE_KEYS.WORKOUTS, []);
-  return workouts.find((w) => String(w.id) === id) ?? null;
+export async function getWorkoutById(id: string | number): Promise<Workout | null> {
+  const workout = await db.workouts.get(id);
+  return workout ?? null;
 }
 
-/** Delete a workout by id. No-op if the id does not exist. */
-export function deleteWorkout(id: string): void {
-  const workouts = readStore<Workout[]>(STORAGE_KEYS.WORKOUTS, []);
-  writeStore(
-    STORAGE_KEYS.WORKOUTS,
-    workouts.filter((w) => String(w.id) !== id)
-  );
+export async function deleteWorkout(id: string | number): Promise<void> {
+  await db.workouts.delete(id);
 }
 
 // ── Split Functions ─────────────────────────────────────────────────────────
 
-/** Get all saved splits. */
-export function getSplits(): Split[] {
-  return readStore<Split[]>(STORAGE_KEYS.SPLITS, []);
+export async function getSplits(): Promise<Split[]> {
+  return await db.splits.toArray();
 }
 
-/**
- * Save a split to localStorage.
- * Auto-generates an id if one is not already set.
- * If a split with the same id exists it will be updated; otherwise it is appended.
- */
-export function saveSplit(split: Split): Split {
-  const splits = readStore<Split[]>(STORAGE_KEYS.SPLITS, []);
-
+export async function saveSplit(split: Split): Promise<Split> {
   const saved: Split = {
     ...split,
     id: split.id || generateId(),
     createdAt: split.createdAt || new Date().toISOString(),
   };
-
-  const idx = splits.findIndex((s) => s.id === saved.id);
-  if (idx !== -1) {
-    splits[idx] = saved;
-  } else {
-    splits.push(saved);
-  }
-
-  writeStore(STORAGE_KEYS.SPLITS, splits);
+  await db.splits.put(saved);
   return saved;
 }
 
-/** Delete a split by id. Also clears the active split if it matches. */
-export function deleteSplit(id: string): void {
-  const splits = readStore<Split[]>(STORAGE_KEYS.SPLITS, []);
-  writeStore(
-    STORAGE_KEYS.SPLITS,
-    splits.filter((s) => s.id !== id)
-  );
-
-  // Clear active split reference if it was the deleted one.
-  if (isBrowser()) {
-    const activeId = localStorage.getItem(STORAGE_KEYS.ACTIVE_SPLIT);
-    if (activeId === id) {
-      localStorage.removeItem(STORAGE_KEYS.ACTIVE_SPLIT);
-    }
+export async function deleteSplit(id: string): Promise<void> {
+  await db.splits.delete(id);
+  const activeSplit = await getActiveSplitId();
+  if (activeSplit === id) {
+    await db.settings.where('key').equals('active_split').delete();
   }
 }
 
-/** Get the currently active split, or null if none is set. */
-export function getActiveSplit(): Split | null {
-  if (!isBrowser()) return null;
-  const activeId = localStorage.getItem(STORAGE_KEYS.ACTIVE_SPLIT);
+export async function getActiveSplit(): Promise<Split | null> {
+  const activeId = await getActiveSplitId();
   if (!activeId) return null;
-
-  const splits = getSplits();
-  return splits.find((s) => s.id === activeId) ?? null;
+  const split = await db.splits.get(activeId);
+  return split ?? null;
 }
 
-/** Mark a split as the active split by its id. */
-export function setActiveSplit(id: string): void {
-  if (!isBrowser()) return;
-  localStorage.setItem(STORAGE_KEYS.ACTIVE_SPLIT, id);
+export async function getActiveSplitId(): Promise<string | null> {
+  const active = await db.settings.where('key').equals('active_split').first();
+  return active ? active.value : null;
+}
+
+export async function setActiveSplit(id: string): Promise<void> {
+  await db.settings.put({ key: 'active_split', value: id });
 }
 
 // ── Settings Functions ──────────────────────────────────────────────────────
 
-/** Get app settings. Returns defaults when nothing is stored. */
-export function getSettings(): Settings {
-  return readStore<Settings>(STORAGE_KEYS.SETTINGS, { ...DEFAULT_SETTINGS });
+export async function getSettings(): Promise<Settings> {
+  const nameSetting = await db.settings.where('key').equals('name').first();
+  return {
+    name: nameSetting ? nameSetting.value : DEFAULT_SETTINGS.name,
+  };
 }
 
-/** Persist app settings to localStorage. */
-export function saveSettings(settings: Settings): void {
-  writeStore(STORAGE_KEYS.SETTINGS, settings);
+export async function saveSettings(settings: Settings): Promise<void> {
+  await db.settings.put({ key: 'name', value: settings.name });
 }
 
 // ── Body Weight Functions ───────────────────────────────────────────────────
 
-export function getBodyWeights(): BodyWeightEntry[] {
-  return readStore<BodyWeightEntry[]>(STORAGE_KEYS.BODYWEIGHT, []).sort(
+export async function getBodyWeights(): Promise<BodyWeightEntry[]> {
+  const entries = await db.bodyweights.toArray();
+  return entries.sort(
     (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
   );
 }
 
-export function saveBodyWeight(weight: number): void {
-  const entries = getBodyWeights();
-  const date = new Date().toISOString(); // use full timestamp so multiple logs per day are distinct
-  entries.push({ id: generateId(), weight, date });
-  writeStore(STORAGE_KEYS.BODYWEIGHT, entries);
+export async function saveBodyWeight(weight: number): Promise<void> {
+  const date = new Date().toISOString();
+  await db.bodyweights.put({ id: generateId(), weight, date });
 }
 
 // ── Personal Record Functions ───────────────────────────────────────────────
 
-export function getPersonalRecords(): PersonalRecord[] {
-  return readStore<PersonalRecord[]>(STORAGE_KEYS.PRS, []);
+export async function getPersonalRecords(): Promise<PersonalRecord[]> {
+  return await db.prs.toArray();
 }
 
-export function savePersonalRecord(pr: PersonalRecord): void {
-  const prs = getPersonalRecords();
-  const existingIndex = prs.findIndex(p => p.exerciseId === pr.exerciseId);
-  if (existingIndex >= 0) {
-    prs[existingIndex] = { ...prs[existingIndex], ...pr };
+export async function savePersonalRecord(pr: PersonalRecord): Promise<void> {
+  const existing = await db.prs.where('exerciseId').equals(pr.exerciseId).first();
+  if (existing) {
+    await db.prs.put({ ...existing, ...pr });
   } else {
-    prs.push({ id: generateId(), ...pr });
+    await db.prs.put({ id: generateId(), ...pr });
   }
-  writeStore(STORAGE_KEYS.PRS, prs);
 }

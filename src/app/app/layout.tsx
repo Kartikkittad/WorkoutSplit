@@ -1,12 +1,13 @@
 import BottomNav from '@/components/BottomNav';
+import OnboardingGuard from '@/components/OnboardingGuard';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="app-container">
-      <div style={{ padding: '0 20px' }}>
+    <OnboardingGuard>
+      <div className="app-container">
         {children}
+        <BottomNav />
       </div>
-      <BottomNav />
-    </div>
+    </OnboardingGuard>
   );
 }
