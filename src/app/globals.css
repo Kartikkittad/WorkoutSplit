@@ -25,6 +25,7 @@
   box-sizing: border-box;
   padding: 0;
   margin: 0;
+  -webkit-tap-highlight-color: transparent;
 }
 
 button, input, select, textarea {
@@ -39,6 +40,7 @@ html {
 html, body {
   max-width: 100vw;
   overflow-x: hidden;
+  overscroll-behavior: none;
 }
 
 body {
@@ -67,7 +69,7 @@ a {
   margin: 0 auto;
   width: 100%;
   min-height: 100dvh;
-  padding-bottom: 80px; /* space for docked bottom nav */
+  padding-bottom: 0;
   position: relative;
 }
 
@@ -210,7 +212,8 @@ a {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 4px 10px 10px; /* slightly taller bottom padding for native home indicator */
+  padding: 0 10px env(safe-area-inset-bottom);
+  height: calc(64px + env(safe-area-inset-bottom));
   z-index: 1000;
   box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.25);
 }

@@ -1,21 +1,28 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSettings } from './SettingsContext';
 
 export default function OnboardingGuard({ children }: { children: React.ReactNode }) {
-  const { onboardingComplete, loading } = useSettings();
+  const { onboardingComplete } = useSettings();
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    if (!loading && !onboardingComplete) {
+    setMounted(true);
+    const obComplete = localStorage.getItem('onboarding_complete') === 'true' || onboardingComplete;
+    if (!obComplete) {
       router.push('/onboarding');
     }
-  }, [loading, onboardingComplete, router]);
+  }, [onboardingComplete, router]);
 
-  if (loading || !onboardingComplete) {
-    return null; // Or a loading spinner
+  const obComplete = typeof window !== 'undefined'
+    ? localStorage.getItem('onboarding_complete') === 'true' || onboardingComplete
+    : onboardingComplete;
+
+  if (!mounted || !obComplete) {
+    return null;
   }
 
   return <>{children}</>;

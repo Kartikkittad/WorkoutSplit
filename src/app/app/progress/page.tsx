@@ -198,7 +198,7 @@ function ProgressContent() {
   ];
 
   return (
-    <div style={{ paddingTop: 16 }}>
+    <div style={{ padding: '24px 16px 96px' }}>
       {/* Header */}
       <h1 className="section-heading" style={{ fontSize: 24, marginBottom: 20 }}>Progress</h1>
 

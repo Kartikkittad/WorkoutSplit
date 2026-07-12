@@ -879,7 +879,7 @@ function LogWorkoutContent() {
 
   /* — render ----------------------------------------------- */
   return (
-    <div className="app-container" style={{ padding: '16px 0 160px' }}>
+    <div className="app-container" style={{ padding: '24px 16px 96px' }}>
       {/* ─── Page Header ─── */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>

@@ -95,7 +95,7 @@ function getCategoryIcon(category: string) {
 
 export default function HomePage() {
   const router = useRouter();
-  const { weightUnit, userName } = useSettings();
+  const { weightUnit, userName, userGender } = useSettings();
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeSplit, setActiveSplit] = useState<{ name: string; days: { name: string; exerciseIds: string[] }[] } | null>(null);
@@ -265,33 +265,43 @@ export default function HomePage() {
     return sum;
   }, 0);
 
-  // Calorie estimate using MET method:
-  // Weight training MET ≈ 5.5, assuming ~75kg bodyweight
-  // Formula: calories = MET × bodyweight(kg) × duration(hours)
-  // Fallback: volume-based estimate when no duration available
+  // Calorie estimate using MET method adjusted for gender BMR and bodyweight:
+  const latestWeightEntry = bodyWeights[bodyWeights.length - 1];
+  const latestWeight = latestWeightEntry ? latestWeightEntry.weight : (weightUnit === 'lbs' ? 165 : 75);
+  const weightInKg = weightUnit === 'lbs' ? latestWeight * 0.45359237 : latestWeight;
+  const bmrFactor = userGender === 'female' ? 0.9 : 1.0;
+
   const caloriesBurned = totalDuration > 0
-    ? Math.round(5.5 * 75 * (totalDuration / 60))
+    ? Math.round(5.5 * weightInKg * (totalDuration / 60) * bmrFactor)
     : todaysWorkouts.reduce((sum, w) =>
         sum + w.exercises.reduce((s, ex) =>
-          s + ex.sets.reduce((setSum, set) =>
-            setSum + (set.completed ? Math.round(set.weight * set.reps * 0.05) : 0), 0), 0), 0);
+          s + ex.sets.reduce((setSum, set) => {
+            if (set.completed) {
+              const weightVal = weightUnit === 'lbs' ? set.weight * 0.45359237 : set.weight;
+              return setSum + Math.round(weightVal * set.reps * 0.05 * bmrFactor);
+            }
+            return setSum;
+          }, 0), 0), 0);
 
-  // Greeting based on time
+  // Greeting based on time and gender
   const hour = new Date().getHours();
-  const greeting = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
+  const timeGreeting = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
+  const personalGreeting = userGender === 'female'
+    ? `Let's crush it, ${userName} 💪`
+    : `Let's get after it, ${userName} 💪`;
 
   // Recent exercises from history for "Today's Exercises" section
   const recentExerciseIds = [...new Set(workouts.flatMap(w => w.exercises.map(e => e.exerciseId)))].slice(0, 5);
 
   return (
-    <div style={{ paddingTop: 16 }}>
+    <div style={{ padding: '24px 16px 96px' }}>
       {/* Page Header — Greeting */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <img src="/icon-192.png" alt="WorkoutSplit" width={40} height={40} style={{ borderRadius: 12 }} />
           <div>
-            <p className="text-secondary" style={{ marginBottom: 2 }}>{greeting}</p>
-            <h1 style={{ fontSize: 22, fontWeight: 700 }}>{userName}</h1>
+            <p className="text-secondary" style={{ marginBottom: 2 }}>{timeGreeting}</p>
+            <h1 style={{ fontSize: 22, fontWeight: 700 }}>{personalGreeting}</h1>
           </div>
         </div>
         <button 

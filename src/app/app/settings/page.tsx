@@ -54,7 +54,7 @@ export default function SettingsPage() {
   };
 
   return (
-    <div style={{ paddingTop: 16, paddingBottom: 100 }}>
+    <div style={{ padding: '24px 16px 96px' }}>
       <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 24 }}>Settings</h1>
       
       {/* Profile Section */}

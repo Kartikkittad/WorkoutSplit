@@ -24,6 +24,18 @@ const TrophyIcon = ({ size = 80, color = 'currentColor' }: { size?: number, colo
   </svg>
 );
 
+const MaleIcon = ({ size = 36, color = 'currentColor' }: { size?: number, color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+    <path d="M21 3h-6c-.55 0-1 .45-1 1s.45 1 1 1h3.59l-5.3 5.29c-1.15-.8-2.52-1.29-4-1.29-3.87 0-7 3.13-7 7s3.13 7 7 7 7-3.13 7-7c0-1.48-.49-2.85-1.29-4l5.29-5.3V9c0 .55.45 1 1 1s1-.45 1-1V3c0-.55-.45-1-1-1zM9.5 20c-2.48 0-4.5-2.02-4.5-4.5S7.02 11 9.5 11s4.5 2.02 4.5 4.5S11.98 20 9.5 20z"/>
+  </svg>
+);
+
+const FemaleIcon = ({ size = 36, color = 'currentColor' }: { size?: number, color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+    <path d="M12 2c-3.87 0-7 3.13-7 7 0 3.07 1.98 5.67 4.75 6.6L9.75 18H8c-.55 0-1 .45-1 1s.45 1 1 1h1.75v1.75c0 .55.45 1 1 1s1-.45 1-1V20H14c.55 0 1-.45 1-1s-.45-1-1-1h-1.75v-2.4c2.77-.93 4.75-3.53 4.75-6.6 0-3.87-3.13-7-7-7zm0 12c-2.48 0-4.5-2.02-4.5-4.5S9.52 5 12 5s4.5 2.02 4.5 4.5S14.48 14 12 14z"/>
+  </svg>
+);
+
 const slides = [
   {
     icon: <DumbbellIcon />,
@@ -44,11 +56,20 @@ const slides = [
 
 export default function OnboardingPage() {
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [name, setName] = useState('');
+  const [gender, setGender] = useState<'male' | 'female' | null>(null);
   const { updateSettings } = useSettings();
   const router = useRouter();
 
-  const handleNext = () => {
-    if (currentSlide < slides.length - 1) {
+  const totalSlides = 4;
+
+  const handleNext = async () => {
+    if (currentSlide === 0) {
+      if (name.trim() && gender) {
+        await updateSettings({ userName: name.trim(), userGender: gender });
+      }
+    }
+    if (currentSlide < totalSlides - 1) {
       setCurrentSlide(prev => prev + 1);
     }
   };
@@ -60,7 +81,11 @@ export default function OnboardingPage() {
   };
 
   const handleComplete = async () => {
-    await updateSettings({ onboardingComplete: true });
+    if (name.trim() && gender) {
+      await updateSettings({ userName: name.trim(), userGender: gender, onboardingComplete: true });
+    } else {
+      await updateSettings({ onboardingComplete: true });
+    }
     router.push('/app');
   };
 
@@ -74,7 +99,13 @@ export default function OnboardingPage() {
 
   const onTouchEnd = (e: React.TouchEvent) => {
     touchEndX = e.changedTouches[0].screenX;
-    if (touchStartX - touchEndX > 50) handleNext();
+    if (touchStartX - touchEndX > 50) {
+      if (currentSlide === 0) {
+        if (name.trim() && gender) handleNext();
+      } else {
+        handleNext();
+      }
+    }
     if (touchEndX - touchStartX > 50) handlePrev();
   };
 
@@ -92,13 +123,13 @@ export default function OnboardingPage() {
       onTouchEnd={onTouchEnd}
     >
       {/* Skip Button */}
-      {currentSlide < slides.length - 1 && (
+      {currentSlide > 0 && currentSlide < totalSlides - 1 && (
         <button
           onClick={handleComplete}
           style={{
             position: 'absolute',
-            top: 24,
-            right: 24,
+            top: 'calc(24px + env(safe-area-inset-top))',
+            right: 'calc(24px + env(safe-area-inset-right))',
             background: 'none',
             border: 'none',
             color: 'var(--text-secondary)',
@@ -118,16 +149,115 @@ export default function OnboardingPage() {
         style={{
           display: 'flex',
           flex: 1,
-          width: `${slides.length * 100}%`,
-          transform: `translateX(-${currentSlide * (100 / slides.length)}%)`,
+          width: `${totalSlides * 100}%`,
+          transform: `translateX(-${currentSlide * (100 / totalSlides)}%)`,
           transition: 'transform 0.4s cubic-bezier(0.25, 1, 0.5, 1)',
         }}
       >
+        {/* Slide 1 — Welcome + Gender + Name */}
+        <div 
+          style={{ 
+            width: `${100 / totalSlides}%`,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            padding: '0 24px',
+            textAlign: 'left',
+          }}
+        >
+          <div style={{ textAlign: 'center', marginBottom: 24 }}>
+            <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 8, color: 'var(--text-primary)', lineHeight: 1.2 }}>
+              Welcome to LiftPulse 💪
+            </h1>
+            <p style={{ fontSize: 16, color: 'var(--text-secondary)' }}>
+              Let's set up your profile
+            </p>
+          </div>
+
+          {/* Name input */}
+          <div style={{ marginBottom: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <label style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
+              What should we call you?
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              placeholder="Your name"
+              style={{
+                width: '100%',
+                padding: '16px',
+                borderRadius: '16px',
+                border: '1px solid var(--border-light)',
+                backgroundColor: 'var(--input-bg)',
+                fontSize: 16,
+                outline: 'none',
+                fontFamily: 'inherit',
+              }}
+            />
+          </div>
+
+          {/* Gender selection */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
+            <label style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
+              I am
+            </label>
+            <div style={{ display: 'flex', gap: 16 }}>
+              {/* Male Card */}
+              <button
+                type="button"
+                onClick={() => setGender('male')}
+                style={{
+                  flex: 1,
+                  height: 110,
+                  borderRadius: 24,
+                  border: gender === 'male' ? '2px solid #C8F135' : '2px solid #E2E8F0',
+                  backgroundColor: gender === 'male' ? 'rgba(200, 241, 53, 0.1)' : 'var(--card-bg)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                }}
+              >
+                <MaleIcon size={36} color={gender === 'male' ? 'var(--text-primary)' : 'var(--text-secondary)'} />
+                <span style={{ fontWeight: 700, fontSize: 16, color: 'var(--text-primary)' }}>Male</span>
+              </button>
+
+              {/* Female Card */}
+              <button
+                type="button"
+                onClick={() => setGender('female')}
+                style={{
+                  flex: 1,
+                  height: 110,
+                  borderRadius: 24,
+                  border: gender === 'female' ? '2px solid #C8F135' : '2px solid #E2E8F0',
+                  backgroundColor: gender === 'female' ? 'rgba(200, 241, 53, 0.1)' : 'var(--card-bg)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                }}
+              >
+                <FemaleIcon size={36} color={gender === 'female' ? 'var(--text-primary)' : 'var(--text-secondary)'} />
+                <span style={{ fontWeight: 700, fontSize: 16, color: 'var(--text-primary)' }}>Female</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Existing Slides */}
         {slides.map((slide, i) => (
           <div 
             key={i} 
             style={{ 
-              width: `${100 / slides.length}%`,
+              width: `${100 / totalSlides}%`,
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
@@ -154,10 +284,10 @@ export default function OnboardingPage() {
       </div>
 
       {/* Bottom Controls */}
-      <div style={{ padding: '32px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 32 }}>
+      <div style={{ padding: '32px 24px calc(24px + env(safe-area-inset-bottom))', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 32 }}>
         {/* Dots */}
         <div style={{ display: 'flex', gap: 8 }}>
-          {slides.map((_, i) => (
+          {Array.from({ length: totalSlides }).map((_, i) => (
             <div
               key={i}
               style={{
@@ -173,7 +303,28 @@ export default function OnboardingPage() {
 
         {/* Action Button */}
         <div style={{ width: '100%', height: 56 }}>
-          {currentSlide === slides.length - 1 ? (
+          {currentSlide === 0 ? (
+            <button
+              onClick={handleNext}
+              disabled={!name.trim() || !gender}
+              style={{
+                width: '100%',
+                height: '100%',
+                backgroundColor: (name.trim() && gender) ? 'var(--lime)' : '#CBD5E1',
+                color: 'var(--text-primary)',
+                fontWeight: 700,
+                fontSize: 18,
+                fontFamily: 'inherit',
+                border: 'none',
+                borderRadius: 9999,
+                cursor: (name.trim() && gender) ? 'pointer' : 'not-allowed',
+                boxShadow: (name.trim() && gender) ? '0 4px 14px rgba(200, 241, 53, 0.4)' : 'none',
+                transition: 'all 0.2s',
+              }}
+            >
+              Next
+            </button>
+          ) : currentSlide === totalSlides - 1 ? (
             <button
               onClick={handleComplete}
               style={{
