@@ -1,4 +1,4 @@
-import { Workout, Split, BodyWeightEntry, PersonalRecord } from "@/lib/types";
+import { Workout, Split, BodyWeightEntry, PersonalRecord, Template } from "@/lib/types";
 import { db } from "./dexie";
 
 // ── Types ───────────────────────────────────────────────────────────────────
@@ -171,3 +171,37 @@ export async function savePersonalRecord(pr: PersonalRecord): Promise<void> {
     await db.prs.put({ id: generateId(), ...pr });
   }
 }
+
+// ── Template Functions ───────────────────────────────────────────────────────
+
+export async function getTemplates(): Promise<Template[]> {
+  const templates = await db.templates.toArray();
+  return templates.sort((a, b) => {
+    const aTime = a.lastUsed ? new Date(a.lastUsed).getTime() : new Date(a.createdAt).getTime();
+    const bTime = b.lastUsed ? new Date(b.lastUsed).getTime() : new Date(b.createdAt).getTime();
+    return bTime - aTime;
+  });
+}
+
+export async function saveTemplate(template: Template): Promise<Template> {
+  const saved: Template = {
+    ...template,
+    id: template.id || generateId(),
+    createdAt: template.createdAt || new Date().toISOString(),
+  };
+  await db.templates.put(saved);
+  return saved;
+}
+
+export async function deleteTemplate(id: string): Promise<void> {
+  await db.templates.delete(id);
+}
+
+export async function updateTemplateLastUsed(id: string): Promise<void> {
+  const template = await db.templates.get(id);
+  if (template) {
+    template.lastUsed = new Date().toISOString();
+    await db.templates.put(template);
+  }
+}
+

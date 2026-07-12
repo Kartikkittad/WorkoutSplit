@@ -1,5 +1,5 @@
 import Dexie, { Table } from 'dexie';
-import { Workout, Split, BodyWeightEntry, PersonalRecord } from './types';
+import { Workout, Split, BodyWeightEntry, PersonalRecord, Template } from './types';
 
 // Extended types for DB
 export interface SettingRecord {
@@ -17,6 +17,7 @@ export class LiftPulseDB extends Dexie {
   bodyweights!: Table<BodyWeightEntry, string>;
   prs!: Table<PersonalRecord, string>;
   settings!: Table<SettingRecord, number>;
+  templates!: Table<Template, string>;
 
   constructor() {
     super('LiftPulseDB');
@@ -27,7 +28,16 @@ export class LiftPulseDB extends Dexie {
       prs: 'id, exerciseId',
       settings: '++id, &key' // unique key
     });
+    this.version(2).stores({
+      workouts: '++id, startedAt',
+      splits: 'id',
+      bodyweights: 'id, date',
+      prs: 'id, exerciseId',
+      settings: '++id, &key',
+      templates: 'id, lastUsed, createdAt'
+    });
   }
 }
 
 export const db = new LiftPulseDB();
+

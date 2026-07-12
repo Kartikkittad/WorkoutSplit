@@ -58,6 +58,12 @@ const ScaleIcon = ({ size = 18, color = 'currentColor' }: { size?: number; color
   </svg>
 );
 
+const TrophyFilledIcon = ({ size = 18, color = 'currentColor' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+    <path d="M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v3c0 2.44 1.72 4.48 4 4.92 1 .58 2.13.92 3.35.98V18H8v2h8v-2h-2.35v-2.1c1.22-.06 2.35-.4 3.35-.98 2.28-.44 4-2.48 4-4.92V7c0-1.1-.9-2-2-2zm-12 5V7h2v3c0 .55-.45 1-1 1s-1-.45-1-1zm11 0c0 .55-.45 1-1 1s-1-.45-1-1V7h2v3z" />
+  </svg>
+);
+
 /* ── Category Icon helper ── */
 function getCategoryIcon(category: string) {
   switch (category) {
@@ -96,6 +102,9 @@ export default function HomePage() {
   const [bodyWeights, setBodyWeights] = useState<BodyWeightEntry[]>([]);
   const [currentWeightInput, setCurrentWeightInput] = useState<string>('');
   const [weightTimeframe, setWeightTimeframe] = useState<'7d' | '30d' | 'all'>('7d');
+  const [currentStreak, setCurrentStreak] = useState(0);
+  const [longestStreak, setLongestStreak] = useState(0);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const filteredBodyWeights = useMemo(() => {
     if (weightTimeframe === 'all') return bodyWeights;
@@ -129,6 +138,106 @@ export default function HomePage() {
       setLoading(false);
     });
   }, []);
+
+  useEffect(() => {
+    if (workouts.length === 0) return;
+
+    const calculateStreak = async () => {
+      const getLocalYYYYMMDD = (dateStr: string) => {
+        const d = new Date(dateStr);
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      };
+
+      const workoutDates = new Set<string>();
+      workouts.forEach(w => {
+        workoutDates.add(getLocalYYYYMMDD(w.startedAt));
+      });
+
+      const todayStr = getLocalYYYYMMDD(new Date().toISOString());
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = getLocalYYYYMMDD(yesterday.toISOString());
+
+      let current = 0;
+      let checkDate = workoutDates.has(todayStr) ? todayStr : (workoutDates.has(yesterdayStr) ? yesterdayStr : null);
+
+      if (checkDate) {
+        current = 1;
+        let curr = new Date(checkDate);
+        while (true) {
+          curr.setDate(curr.getDate() - 1);
+          const prevDateStr = getLocalYYYYMMDD(curr.toISOString());
+          if (workoutDates.has(prevDateStr)) {
+            current++;
+          } else {
+            break;
+          }
+        }
+      }
+
+      // Longest streak
+      const ascDates = Array.from(workoutDates).sort((a, b) => a.localeCompare(b));
+      let longest = 0;
+      let tempStreak = 0;
+      let prevDate: Date | null = null;
+
+      ascDates.forEach(dateStr => {
+        const currentDate = new Date(dateStr);
+        if (!prevDate) {
+          tempStreak = 1;
+        } else {
+          const prevDayExpected = new Date(currentDate);
+          prevDayExpected.setDate(prevDayExpected.getDate() - 1);
+          const prevDayExpectedStr = getLocalYYYYMMDD(prevDayExpected.toISOString());
+          const prevDateStr = getLocalYYYYMMDD(prevDate.toISOString());
+
+          if (prevDateStr === prevDayExpectedStr) {
+            tempStreak++;
+          } else {
+            tempStreak = 1;
+          }
+        }
+        longest = Math.max(longest, tempStreak);
+        prevDate = currentDate;
+      });
+
+      setCurrentStreak(current);
+      setLongestStreak(longest);
+
+      // Save to Dexie settings
+      const { db } = await import('@/lib/dexie');
+      await db.settings.put({ key: 'current_streak', value: current });
+      await db.settings.put({ key: 'longest_streak', value: longest });
+
+      // Check milestones
+      if (current === 3 || current === 7 || current === 30) {
+        const lastShown = localStorage.getItem('last_shown_milestone_streak');
+        if (lastShown !== current.toString()) {
+          let msg = '';
+          if (current === 3) msg = 'You are on a roll!';
+          else if (current === 7) msg = 'One week strong!';
+          else if (current === 30) msg = 'Unstoppable!';
+
+          setToastMessage(msg);
+          localStorage.setItem('last_shown_milestone_streak', current.toString());
+        }
+      }
+    };
+
+    calculateStreak();
+  }, [workouts]);
+
+  useEffect(() => {
+    if (toastMessage) {
+      const timer = setTimeout(() => {
+        setToastMessage(null);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [toastMessage]);
 
   const handleSaveBodyWeight = async () => {
     const weight = parseFloat(currentWeightInput);
@@ -308,6 +417,43 @@ export default function HomePage() {
           >
             Log Weight
           </button>
+        </div>
+      </div>
+
+      {/* ─── Streak Tracker Card ─── */}
+      <div 
+        className="card" 
+        style={{ 
+          background: currentStreak >= 7 ? '#C8F135' : 'white', 
+          color: '#0F172A', 
+          marginBottom: 16, 
+          padding: '20px 24px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          transition: 'all 0.3s ease',
+          boxShadow: 'var(--shadow-card)',
+          borderRadius: 24, // rounded-3xl
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <FlameIcon size={36} color={currentStreak >= 7 ? '#0F172A' : '#ff8c32'} />
+          <div style={{ textAlign: 'left' }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+              <span style={{ fontSize: 24, fontWeight: 900, lineHeight: 1 }}>{currentStreak}</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: currentStreak >= 7 ? '#0F172A' : 'var(--text-secondary)' }}>day streak</span>
+            </div>
+            {currentStreak === 0 && (
+              <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4, fontWeight: 600 }}>
+                Start your streak today!
+              </p>
+            )}
+          </div>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color: currentStreak >= 7 ? '#334155' : '#94a3b8' }}>
+            Best: {longestStreak} days
+          </span>
         </div>
       </div>
 
@@ -497,6 +643,42 @@ export default function HomePage() {
           })}
         </div>
       </div>
+      
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: 80,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: '#0F172A',
+            color: 'white',
+            padding: '12px 24px',
+            borderRadius: 9999,
+            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)',
+            zIndex: 9999,
+            fontWeight: 700,
+            fontSize: 14,
+            whiteSpace: 'nowrap',
+            animation: 'slideUp 0.3s ease-out',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+          }}
+        >
+          {currentStreak === 3 && <FlameIcon size={18} color="#ff8c32" />}
+          {currentStreak === 7 && <DumbbellIcon size={18} color="#C8F135" />}
+          {currentStreak === 30 && <TrophyFilledIcon size={18} color="#fbbf24" />}
+          <span>{toastMessage}</span>
+          <style>{`
+            @keyframes slideUp {
+              from { transform: translate(-50%, 20px); opacity: 0; }
+              to { transform: translate(-50%, 0); opacity: 1; }
+            }
+          `}</style>
+        </div>
+      )}
     </div>
   );
 }

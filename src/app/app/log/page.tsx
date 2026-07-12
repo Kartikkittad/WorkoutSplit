@@ -2,8 +2,8 @@
 
 import { useState, useCallback, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { CATEGORIES, getExercisesByCategory, type ExerciseDefinition } from '@/lib/exercises';
-import type { WorkoutSet } from '@/lib/types';
+import { EXERCISES, CATEGORIES, getExercisesByCategory, type ExerciseDefinition } from '@/lib/exercises';
+import type { WorkoutSet, Template } from '@/lib/types';
 import RestTimer from '@/components/RestTimer';
 import { useSettings } from '@/components/SettingsContext';
 
@@ -24,6 +24,18 @@ const CheckCircleIcon = ({ size = 24, color = 'currentColor' }: { size?: number;
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
     <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
     <polyline points="22 4 12 14.01 9 11.01"/>
+  </svg>
+);
+
+const ClipboardFilledIcon = ({ size = 16, color = 'currentColor' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+    <path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H10v-2h4v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z" />
+  </svg>
+);
+
+const SaveFilledIcon = ({ size = 16, color = 'currentColor' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+    <path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z" />
   </svg>
 );
 
@@ -99,6 +111,75 @@ function LogWorkoutContent() {
   const [exerciseHistory, setExerciseHistory] = useState<Record<string, { maxWeight: number, lastWeight: number, lastReps: number, lastSets: number }>>({});
   const [celebration, setCelebration] = useState<{ show: boolean; text: string; subtext: string }>({ show: false, text: '', subtext: '' });
   const [workoutFinishedStats, setWorkoutFinishedStats] = useState<{sets: number, volume: number, duration: number} | null>(null);
+
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [saveAsTemplateName, setSaveAsTemplateName] = useState('');
+  const [showSaveTemplatePrompt, setShowSaveTemplatePrompt] = useState(false);
+  const [templateSaving, setTemplateSaving] = useState(false);
+  const [templateSaved, setTemplateSaved] = useState(false);
+
+  const loadTemplatesList = useCallback(async () => {
+    const { getTemplates } = await import('@/lib/storage');
+    setTemplates(await getTemplates());
+  }, []);
+
+  const handleDeleteTemplate = useCallback(async (id: string) => {
+    const { deleteTemplate } = await import('@/lib/storage');
+    await deleteTemplate(id);
+    const { getTemplates } = await import('@/lib/storage');
+    setTemplates(await getTemplates());
+  }, []);
+
+  const handleLoadTemplate = useCallback(async (template: Template) => {
+    setWorkoutName(template.name);
+    setAddedExercises(
+      template.exercises.map((ex) => ({
+        exerciseId: ex.exerciseId,
+        exerciseName: ex.exerciseName,
+        category: EXERCISES.find(e => e.id === ex.exerciseId)?.category || 'Push',
+        color: EXERCISES.find(e => e.id === ex.exerciseId)?.color || '#C8F135',
+        sets: ex.sets.map((s) => ({
+          ...s,
+          completed: false,
+        })),
+      }))
+    );
+    setShowTemplates(false);
+    setShowExercisePicker(false);
+    const { updateTemplateLastUsed } = await import('@/lib/storage');
+    await updateTemplateLastUsed(template.id);
+  }, []);
+
+  const handleSaveAsTemplate = useCallback(async () => {
+    if (!saveAsTemplateName.trim() || templateSaving) return;
+    setTemplateSaving(true);
+    try {
+      const { saveTemplate, generateId } = await import('@/lib/storage');
+      const template = {
+        id: generateId(),
+        name: saveAsTemplateName.trim(),
+        exercises: addedExercises.map((ex) => ({
+          exerciseId: ex.exerciseId,
+          exerciseName: ex.exerciseName,
+          sets: ex.sets.map((s) => ({
+            setNumber: s.setNumber,
+            weight: s.weight,
+            reps: s.reps,
+            completed: false,
+          })),
+        })),
+        createdAt: new Date().toISOString(),
+      };
+      await saveTemplate(template);
+      setTemplateSaved(true);
+      setShowSaveTemplatePrompt(false);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setTemplateSaving(false);
+    }
+  }, [saveAsTemplateName, addedExercises, templateSaving]);
 
   /* — auto-add exercises from URL params and load history -------------------- */
   useEffect(() => {
@@ -388,29 +469,57 @@ function LogWorkoutContent() {
   return (
     <div className="app-container" style={{ padding: '16px 0 160px' }}>
       {/* ─── Page Header ─── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <button
+            onClick={() => router.push('/app')}
+            aria-label="Go back"
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: '50%',
+              border: 'none',
+              background: 'var(--card-bg)',
+              boxShadow: 'var(--shadow-card)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              flexShrink: 0,
+            }}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </button>
+          <h1 style={{ fontSize: 26, fontWeight: 800, letterSpacing: -0.5 }}>Log Workout</h1>
+        </div>
         <button
-          onClick={() => router.push('/app')}
-          aria-label="Go back"
+          onClick={() => {
+            setShowTemplates(true);
+            loadTemplatesList();
+          }}
           style={{
-            width: 44,
-            height: 44,
-            borderRadius: '50%',
-            border: 'none',
+            height: 38,
+            padding: '0 16px',
+            borderRadius: 9999,
+            border: '1px solid var(--border-light)',
             background: 'var(--card-bg)',
+            fontWeight: 700,
+            fontSize: 13,
+            color: 'var(--text-primary)',
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            transition: 'all 0.2s ease',
             boxShadow: 'var(--shadow-card)',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            flexShrink: 0,
+            gap: 6
           }}
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
+          <ClipboardFilledIcon size={16} />
+          <span>Templates</span>
         </button>
-        <h1 style={{ fontSize: 26, fontWeight: 800, letterSpacing: -0.5 }}>Log Workout</h1>
       </div>
 
       {/* ─── Workout Name ─── */}
@@ -1005,6 +1114,214 @@ function LogWorkoutContent() {
           >
             Back to Home
           </button>
+          
+          <button
+            onClick={() => {
+              if (templateSaved) return;
+              setSaveAsTemplateName(workoutName);
+              setShowSaveTemplatePrompt(true);
+            }}
+            disabled={templateSaved}
+            style={{
+              width: '100%',
+              maxWidth: 320,
+              padding: '16px',
+              borderRadius: 9999,
+              border: templateSaved ? 'none' : '1px solid rgba(255,255,255,0.2)',
+              background: templateSaved ? 'rgba(200, 241, 53, 0.15)' : 'transparent',
+              color: templateSaved ? 'var(--lime)' : 'white',
+              fontWeight: 700,
+              fontSize: 16,
+              cursor: templateSaved ? 'default' : 'pointer',
+              marginTop: 12,
+              transition: 'all 0.2s ease',
+              opacity: templateSaved ? 0.9 : 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8
+            }}
+          >
+            {templateSaved ? (
+              <span>Template Saved! ✓</span>
+            ) : (
+              <>
+                <SaveFilledIcon size={18} color="white" />
+                <span>Save as Template</span>
+              </>
+            )}
+          </button>
+        </div>
+      )}
+      {/* ─── Templates Drawer/Overlay ─── */}
+      {showTemplates && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: '#F8FAFC', // Slate 50 background for clean light look
+            zIndex: 1000,
+            display: 'flex',
+            flexDirection: 'column',
+            padding: 16,
+            animation: 'fadeIn 0.2s ease-out forwards',
+            maxWidth: 390,
+            margin: '0 auto',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+            <h2 style={{ fontSize: 22, fontWeight: 800 }}>Workout Templates</h2>
+            <button
+              onClick={() => setShowTemplates(false)}
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: '50%',
+                border: 'none',
+                background: 'white',
+                boxShadow: 'var(--shadow-card)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+              }}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" strokeWidth={2.5} strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+
+          {templates.length === 0 ? (
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: 24 }}>
+              <div style={{ marginBottom: 16, color: '#94a3b8' }}>
+                <ClipboardFilledIcon size={64} />
+              </div>
+              <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>No templates yet</h3>
+              <p className="text-secondary" style={{ fontSize: 14 }}>Save a workout as a template to reuse it</p>
+            </div>
+          ) : (
+            <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12, paddingBottom: 40 }}>
+              {templates.map(tmpl => (
+                <div
+                  key={tmpl.id}
+                  className="card card-hover"
+                  style={{ cursor: 'pointer', padding: 18, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                  onClick={() => handleLoadTemplate(tmpl)}
+                >
+                  <div style={{ flex: 1, minWidth: 0, paddingRight: 12 }}>
+                    <h4 style={{ fontSize: 16, fontWeight: 700, marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tmpl.name}</h4>
+                    <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                      {tmpl.exercises.length} exercises · {tmpl.lastUsed ? `Last used: ${new Date(tmpl.lastUsed).toLocaleDateString()}` : 'Never used'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteTemplate(tmpl.id);
+                    }}
+                    style={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: '50%',
+                      border: 'none',
+                      background: 'rgba(239, 68, 68, 0.08)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      color: '#ef4444',
+                      flexShrink: 0
+                    }}
+                    aria-label="Delete template"
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="3 6 5 6 21 6" />
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                      <line x1="10" y1="11" x2="10" y2="17" />
+                      <line x1="14" y1="11" x2="14" y2="17" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ─── Save Template Prompt Modal ─── */}
+      {showSaveTemplatePrompt && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.95)',
+            zIndex: 11000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 24,
+            animation: 'fadeIn 0.2s ease-out forwards',
+          }}
+        >
+          <div
+            style={{
+              background: 'white',
+              borderRadius: 24,
+              padding: 24,
+              width: '100%',
+              maxWidth: 320,
+              textAlign: 'left',
+            }}
+          >
+            <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 8, color: 'var(--text-primary)' }}>Save Template</h3>
+            <p className="text-secondary" style={{ fontSize: 13, marginBottom: 16 }}>Enter a name to save this workout structure for future logs.</p>
+            <input
+              type="text"
+              value={saveAsTemplateName}
+              onChange={(e) => setSaveAsTemplateName(e.target.value)}
+              placeholder="Template Name"
+              className="input-field"
+              style={{ marginBottom: 20, width: '100%' }}
+            />
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => setShowSaveTemplatePrompt(false)}
+                style={{
+                  flex: 1,
+                  height: 48,
+                  borderRadius: 9999,
+                  border: '1px solid var(--border-light)',
+                  background: 'white',
+                  color: 'var(--text-primary)',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  fontSize: 14,
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveAsTemplate}
+                disabled={!saveAsTemplateName.trim() || templateSaving}
+                style={{
+                  flex: 1,
+                  height: 48,
+                  borderRadius: 9999,
+                  border: 'none',
+                  background: 'var(--lime)',
+                  color: 'var(--text-primary)',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  fontSize: 14,
+                  opacity: saveAsTemplateName.trim() ? 1 : 0.5
+                }}
+              >
+                {templateSaving ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

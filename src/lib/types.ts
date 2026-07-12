@@ -56,3 +56,12 @@ export interface Split {
   days: SplitDay[];
   createdAt: string;
 }
+
+export interface Template {
+  id: string;
+  name: string;
+  exercises: WorkoutExercise[];
+  lastUsed?: string;
+  createdAt: string;
+}
+

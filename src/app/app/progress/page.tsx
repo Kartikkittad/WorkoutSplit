@@ -1,17 +1,24 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import LineChart from '@/components/LineChart';
 import { EXERCISES } from '@/lib/exercises';
-import { ProgressDataPoint, PersonalRecord } from '@/lib/types';
+import { ProgressDataPoint, PersonalRecord, Workout } from '@/lib/types';
 import { useSettings } from '@/components/SettingsContext';
+import BodyHeatmapSVG from '@/components/BodyHeatmapSVG';
 
 const BarChartIcon = ({ size = 24, color = 'currentColor' }: { size?: number; color?: string }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
     <line x1="12" x2="12" y1="20" y2="10"/>
     <line x1="18" x2="18" y1="20" y2="4"/>
     <line x1="6" x2="6" y1="20" y2="16"/>
+  </svg>
+);
+
+const FlameIcon = ({ size = 18, color = 'currentColor' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+    <path d="M12 23c-4.97 0-9-3.58-9-8 0-2.52 1.17-4.7 2.5-6.37A25.16 25.16 0 0 0 8.37 4.9a1 1 0 0 1 1.63.37c.43 1.11 1.13 2.34 2.16 3.3.08-.9.39-1.96 1.12-3.06A10.15 10.15 0 0 1 15.67.79a1 1 0 0 1 1.53.78c.05 1.42.52 3.13 1.55 4.68C20.13 8.3 21 10.53 21 13c0 5.5-4.03 10-9 10z" />
   </svg>
 );
 
@@ -23,6 +30,7 @@ function ProgressContent() {
   const [data, setData] = useState<ProgressDataPoint[]>([]);
   const [prs, setPrs] = useState<PersonalRecord[]>([]);
   const [loading, setLoading] = useState(false);
+  const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [metric, setMetric] = useState<'maxWeight' | 'totalVolume' | 'totalSets'>('maxWeight');
   const [timeFilter, setTimeFilter] = useState<'week' | 'month' | 'all'>('all');
   const [showPicker, setShowPicker] = useState(false);
@@ -33,10 +41,47 @@ function ProgressContent() {
   const [isSharing, setIsSharing] = useState(false);
   const [prImages, setPrImages] = useState<Record<string, string>>({});
 
+
+  const muscleCounts = useMemo(() => {
+    const EXERCISE_TO_MUSCLE: Record<string, string> = {
+      'bench-press': 'Chest', 'incline-db-press': 'Chest', 'chest-fly': 'Chest', 'machine-chest-press': 'Chest', 'pec-deck': 'Chest', 'dips': 'Chest',
+      'overhead-press': 'Shoulders', 'lateral-raise': 'Shoulders', 'front-raise': 'Shoulders', 'tricep-pushdown': 'Triceps', 'skull-crushers': 'Triceps', 'close-grip-bench': 'Triceps',
+      'deadlift': 'Back', 'barbell-row': 'Back', 'pull-up': 'Back', 'lat-pulldown': 'Back', 'seated-cable-row': 'Back', 't-bar-row': 'Back', 'shrugs': 'Back', 'straight-arm-pulldown': 'Back',
+      'bicep-curl': 'Biceps', 'hammer-curl': 'Biceps', 'preacher-curl': 'Biceps', 'face-pull': 'Shoulders',
+      'squat': 'Quads', 'leg-press': 'Quads', 'front-squat': 'Quads', 'hack-squat': 'Quads', 'lunges': 'Quads', 'bulgarian-split-squat': 'Quads', 'leg-extension': 'Quads',
+      'romanian-deadlift': 'Hamstrings', 'leg-curl': 'Hamstrings', 'hip-thrust': 'Glutes', 'calf-raise': 'Calves',
+      'plank': 'Core', 'cable-crunch': 'Core', 'hanging-leg-raise': 'Core', 'ab-wheel': 'Core', 'russian-twist': 'Core', 'crunches': 'Core', 'back-extension': 'Core'
+    };
+    const counts: Record<string, number> = {
+      Chest: 0, Back: 0, Shoulders: 0, Biceps: 0, Triceps: 0,
+      Quads: 0, Hamstrings: 0, Glutes: 0, Core: 0, Calves: 0
+    };
+    const now = new Date();
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    workouts.filter(w => new Date(w.startedAt) >= sevenDaysAgo).forEach(w => {
+      w.exercises.forEach(ex => {
+        if (ex.sets.some(s => s.completed)) {
+          const m = EXERCISE_TO_MUSCLE[ex.exerciseId];
+          if (m in counts) counts[m]++;
+        }
+      });
+    });
+    return counts;
+  }, [workouts]);
+
+  const getMuscleColor = (muscle: string) => {
+    const count = muscleCounts[muscle] || 0;
+    if (count === 0) return '#F1F5F9';
+    if (count === 1) return '#D9F99D';
+    if (count === 2) return '#A3E635';
+    return '#65A30D';
+  };
+
   useEffect(() => {
     setLoading(true);
     import('@/lib/storage').then(async ({ getWorkouts, getPersonalRecords }) => {
       const workouts = await getWorkouts();
+      setWorkouts(workouts);
       // Calculate progress data for selected exercise
       const exerciseData: Record<string, ProgressDataPoint> = {};
 
@@ -376,6 +421,92 @@ function ProgressContent() {
           <p className="text-secondary" style={{ fontSize: 11, marginTop: 6 }}>Total Sets</p>
         </div>
       </div>
+
+      {/* ─── Muscle Group Heatmap ─── */}
+      {(() => {
+        const [bodyView, setBodyView] = useState<'front' | 'back'>('front');
+        const EXERCISE_TO_MUSCLE: Record<string, string> = {
+          'bench-press': 'Chest', 'incline-db-press': 'Chest', 'chest-fly': 'Chest', 'machine-chest-press': 'Chest', 'pec-deck': 'Chest', 'dips': 'Chest',
+          'overhead-press': 'Shoulders', 'lateral-raise': 'Shoulders', 'front-raise': 'Shoulders', 'tricep-pushdown': 'Triceps', 'skull-crushers': 'Triceps', 'close-grip-bench': 'Triceps',
+          'deadlift': 'Back', 'barbell-row': 'Back', 'pull-up': 'Back', 'lat-pulldown': 'Back', 'seated-cable-row': 'Back', 't-bar-row': 'Back', 'shrugs': 'Back', 'straight-arm-pulldown': 'Back',
+          'bicep-curl': 'Biceps', 'hammer-curl': 'Biceps', 'preacher-curl': 'Biceps', 'face-pull': 'Shoulders',
+          'squat': 'Quads', 'leg-press': 'Quads', 'front-squat': 'Quads', 'hack-squat': 'Quads', 'lunges': 'Quads', 'bulgarian-split-squat': 'Quads', 'leg-extension': 'Quads',
+          'romanian-deadlift': 'Hamstrings', 'leg-curl': 'Hamstrings', 'hip-thrust': 'Glutes', 'calf-raise': 'Calves',
+          'plank': 'Core', 'cable-crunch': 'Core', 'hanging-leg-raise': 'Core', 'ab-wheel': 'Core', 'russian-twist': 'Core', 'crunches': 'Core', 'back-extension': 'Core'
+        };
+
+        const muscleCounts = useMemo(() => {
+          const counts: Record<string, number> = {
+            Chest: 0, Back: 0, Shoulders: 0, Biceps: 0, Triceps: 0,
+            Quads: 0, Hamstrings: 0, Glutes: 0, Core: 0, Calves: 0
+          };
+          const now = new Date();
+          const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          workouts.filter(w => new Date(w.startedAt) >= sevenDaysAgo).forEach(w => {
+            w.exercises.forEach(ex => {
+              if (ex.sets.some(s => s.completed)) {
+                const m = EXERCISE_TO_MUSCLE[ex.exerciseId];
+                if (m in counts) counts[m]++;
+              }
+            });
+          });
+          return counts;
+        }, [workouts]);
+
+        return (
+          <div className="card" style={{ padding: 18, marginBottom: 24 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <h2 style={{ fontSize: 16, fontWeight: 700 }}>Muscle Group Heatmap</h2>
+              <button
+                onClick={() => setBodyView(v => v === 'front' ? 'back' : 'front')}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  border: '1px solid #E2E8F0', background: '#F8FAFC', borderRadius: 9999,
+                  padding: '5px 12px', cursor: 'pointer', fontFamily: 'inherit',
+                  fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                  <path d="M3 3v5h5" />
+                  <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+                  <path d="M21 21v-5h-5" />
+                </svg>
+                {bodyView === 'front' ? 'Front' : 'Back'}
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '8px 0', minHeight: 300 }}>
+              <BodyHeatmapSVG muscleCounts={muscleCounts} view={bodyView} />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: 16, marginTop: 14, marginBottom: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><div style={{ width: 12, height: 12, borderRadius: 3, background: '#B4DEC4', border: '1px solid #6AAE7B' }} /><span style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 600 }}>0x</span></div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><div style={{ width: 12, height: 12, borderRadius: 3, background: '#FFDA6B' }} /><span style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 600 }}>1x</span></div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><div style={{ width: 12, height: 12, borderRadius: 3, background: '#FF9F43' }} /><span style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 600 }}>2x</span></div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><div style={{ width: 12, height: 12, borderRadius: 3, background: '#EE5A24' }} /><span style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 600 }}>3x+</span></div>
+            </div>
+
+            <div style={{ textAlign: 'center', borderTop: '1px solid var(--border-light)', paddingTop: 12, marginTop: 4 }}>
+              {(() => {
+                let maxCount = 0;
+                let maxMuscle = '';
+                for (const [muscle, c] of Object.entries(muscleCounts)) {
+                  if (c > maxCount) { maxCount = c; maxMuscle = muscle; }
+                }
+                if (maxCount === 0) return <p style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 500 }}>No workouts logged in the last 7 days</p>;
+                return (
+                  <p style={{ fontSize: 14, color: 'var(--text-primary)', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                    <span>Most trained this week: {maxMuscle}</span>
+                    <FlameIcon size={16} color="#ff8c32" />
+                  </p>
+                );
+              })()}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Personal Records */}
       <div style={{ marginBottom: 28 }}>
