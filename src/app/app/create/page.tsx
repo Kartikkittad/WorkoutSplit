@@ -30,6 +30,12 @@ const CheckIcon = () => (
   </svg>
 );
 
+const LinkIcon = ({ size = 16 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
+    <path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z" />
+  </svg>
+);
+
 const DAY_PRESETS = ['Push', 'Pull', 'Legs', 'Upper', 'Lower', 'Full Body', 'Arms', 'Back', 'Chest', 'Shoulders'];
 
 export default function CreateSplitPage() {
@@ -40,6 +46,9 @@ export default function CreateSplitPage() {
   const [editingDayIndex, setEditingDayIndex] = useState<number | null>(null);
   const [exerciseFilter, setExerciseFilter] = useState('All');
   const [saving, setSaving] = useState(false);
+
+  const [showAddSupersetModal, setShowAddSupersetModal] = useState(false);
+  const [selectedSupersetExercises, setSelectedSupersetExercises] = useState<string[]>([]);
 
   // Step 2: Add a day
   const addDay = useCallback((name: string) => {
@@ -56,11 +65,44 @@ export default function CreateSplitPage() {
     setDays(prev => prev.map((day, i) => {
       if (i !== editingDayIndex) return day;
       const has = day.exerciseIds.includes(exerciseId);
+      const nextExerciseIds = has
+        ? day.exerciseIds.filter(id => id !== exerciseId)
+        : [...day.exerciseIds, exerciseId];
+      // Clean up supersets if we remove the exercise
+      const nextSupersets = has && day.supersets
+        ? day.supersets.filter(ss => !ss.includes(exerciseId))
+        : day.supersets;
       return {
         ...day,
-        exerciseIds: has
-          ? day.exerciseIds.filter(id => id !== exerciseId)
-          : [...day.exerciseIds, exerciseId],
+        exerciseIds: nextExerciseIds,
+        supersets: nextSupersets,
+      };
+    }));
+  }, [editingDayIndex]);
+
+  const addSupersetToDay = useCallback((exId1: string, exId2: string) => {
+    if (editingDayIndex === null) return;
+    setDays(prev => prev.map((day, i) => {
+      if (i !== editingDayIndex) return day;
+      const currentSupersets = day.supersets || [];
+      const cleanedSupersets = currentSupersets.filter(
+        ss => !ss.includes(exId1) && !ss.includes(exId2)
+      );
+      return {
+        ...day,
+        supersets: [...cleanedSupersets, [exId1, exId2]],
+      };
+    }));
+  }, [editingDayIndex]);
+
+  const removeSupersetFromDay = useCallback((supersetIndex: number) => {
+    if (editingDayIndex === null) return;
+    setDays(prev => prev.map((day, i) => {
+      if (i !== editingDayIndex) return day;
+      const currentSupersets = day.supersets || [];
+      return {
+        ...day,
+        supersets: currentSupersets.filter((_, idx) => idx !== supersetIndex),
       };
     }));
   }, [editingDayIndex]);
@@ -269,82 +311,270 @@ export default function CreateSplitPage() {
       )}
 
       {/* ── STEP 3: Exercise picker for a day ── */}
-      {step === 3 && editingDayIndex !== null && (
-        <div>
-          <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>
-            {days[editingDayIndex].name} — Select Exercises
-          </h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginBottom: 16 }}>
-            {days[editingDayIndex].exerciseIds.length} selected
-          </p>
+      {step === 3 && editingDayIndex !== null && (() => {
+        const day = days[editingDayIndex];
+        const daySupersets = day.supersets || [];
+        return (
+          <div>
+            <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>
+              {day.name} — Select Exercises
+            </h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginBottom: 16 }}>
+              {day.exerciseIds.length} selected
+            </p>
 
-          {/* Category filter */}
-          <div className="scroll-row" style={{ marginBottom: 16, gap: 6 }}>
-            {CATEGORIES.map(cat => (
-              <button
-                key={cat}
-                onClick={() => setExerciseFilter(cat)}
-                style={{
-                  padding: '8px 16px', borderRadius: 9999, flexShrink: 0,
-                  border: exerciseFilter === cat ? 'none' : '1px solid var(--border-light)',
-                  background: exerciseFilter === cat ? 'var(--primary)' : 'white',
-                  fontWeight: 600, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit',
-                }}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
+            {/* ── Superset Management ── */}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                <h3 style={{ fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <LinkIcon size={16} /> Supersets ({daySupersets.length})
+                </h3>
+                {day.exerciseIds.length >= 2 && (
+                  <button
+                    onClick={() => {
+                      setSelectedSupersetExercises([]);
+                      setShowAddSupersetModal(true);
+                    }}
+                    style={{
+                      fontSize: 12, fontWeight: 700, color: 'var(--text-primary)',
+                      background: 'var(--lime)', border: 'none', borderRadius: 9999,
+                      padding: '4px 12px', cursor: 'pointer', fontFamily: 'inherit',
+                    }}
+                  >
+                    + Add Superset
+                  </button>
+                )}
+              </div>
 
-          {/* Exercise list */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {filteredExercises.map(ex => {
-              const isSelected = days[editingDayIndex].exerciseIds.includes(ex.id);
-              return (
+              {daySupersets.length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+                  {daySupersets.map((ss, idx) => {
+                    const ex1Name = EXERCISES.find(e => e.id === ss[0])?.name || ss[0];
+                    const ex2Name = EXERCISES.find(e => e.id === ss[1])?.name || ss[1];
+                    return (
+                      <div key={idx} className="card" style={{
+                        padding: '10px 14px', border: '1px solid rgba(6, 182, 212, 0.3)',
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                        background: 'transparent',
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                          <LinkIcon size={16} />
+                          <div style={{ minWidth: 0 }}>
+                            <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {ex1Name} + {ex2Name}
+                            </p>
+                            <p style={{ fontSize: 11, color: '#0891b2', fontWeight: 600 }}>Superset</p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => removeSupersetFromDay(idx)}
+                          style={{
+                            border: 'none', background: 'none', color: '#ef4444',
+                            fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit',
+                            padding: '4px 8px',
+                          }}
+                        >
+                          Unlink
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p style={{ fontSize: 12, color: 'var(--text-secondary)', fontStyle: 'italic', marginBottom: 16 }}>
+                  No supersets configured for this day yet.
+                </p>
+              )}
+            </div>
+
+            {/* Category filter */}
+            <div className="scroll-row" style={{ marginBottom: 16, gap: 6 }}>
+              {CATEGORIES.map(cat => (
                 <button
-                  key={ex.id}
-                  onClick={() => toggleExercise(ex.id)}
+                  key={cat}
+                  onClick={() => setExerciseFilter(cat)}
                   style={{
-                    display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px',
-                    borderRadius: 14, border: isSelected ? '2px solid #C8F135' : '1px solid var(--border-light)',
-                    background: isSelected ? 'rgba(200,241,53,0.08)' : 'white',
-                    cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', width: '100%',
+                    padding: '8px 16px', borderRadius: 9999, flexShrink: 0,
+                    border: exerciseFilter === cat ? 'none' : '1px solid var(--border-light)',
+                    background: exerciseFilter === cat ? 'var(--primary)' : 'white',
+                    fontWeight: 600, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit',
                   }}
                 >
-                  <div style={{
-                    width: 36, height: 36, borderRadius: 10,
-                    background: `${ex.color}25`, display: 'flex',
-                    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                  }}>
-                    <svg width={18} height={18} viewBox="0 0 24 24" fill={ex.color}>
-                      <path d="M6.5 2A2.5 2.5 0 0 0 4 4.5V9H3a1 1 0 0 0-1 1v4a1 1 0 0 0 1 1h1v4.5A2.5 2.5 0 0 0 6.5 22h1A2.5 2.5 0 0 0 10 19.5V15h4v4.5a2.5 2.5 0 0 0 2.5 2.5h1a2.5 2.5 0 0 0 2.5-2.5V15h1a1 1 0 0 0 1-1v-4a1 1 0 0 0-1-1h-1V4.5A2.5 2.5 0 0 0 17.5 2h-1A2.5 2.5 0 0 0 14 4.5V9h-4V4.5A2.5 2.5 0 0 0 7.5 2h-1z" />
-                    </svg>
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <p style={{ fontSize: 14, fontWeight: 600 }}>{ex.name}</p>
-                    <p style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
-                      {ex.category} · {ex.defaultSets}×{ex.defaultReps}
-                    </p>
-                  </div>
-                  {isSelected && (
-                    <svg width={22} height={22} viewBox="0 0 24 24" fill="#7a9a0a">
-                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
-                    </svg>
-                  )}
+                  {cat}
                 </button>
-              );
-            })}
-          </div>
+              ))}
+            </div>
 
-          <button
-            onClick={() => setEditingDayIndex(null)}
-            className="btn-primary"
-            style={{ width: '100%', marginTop: 20 }}
-          >
-            Done — {days[editingDayIndex].exerciseIds.length} exercises
-          </button>
-        </div>
-      )}
+            {/* Exercise list */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {filteredExercises.map(ex => {
+                const isSelected = day.exerciseIds.includes(ex.id);
+                // Check if this exercise belongs to any superset on this day
+                const isPartOfSuperset = daySupersets.some(ss => ss.includes(ex.id));
+                return (
+                  <button
+                    key={ex.id}
+                    onClick={() => toggleExercise(ex.id)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px',
+                      borderRadius: 14,
+                      border: isSelected 
+                        ? (isPartOfSuperset ? '2px solid #06b6d4' : '2px solid #C8F135') 
+                        : '1px solid var(--border-light)',
+                      background: isSelected 
+                        ? (isPartOfSuperset ? 'rgba(6,182,212,0.04)' : 'rgba(200,241,53,0.08)') 
+                        : 'white',
+                      cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', width: '100%',
+                    }}
+                  >
+                    <div style={{
+                      width: 36, height: 36, borderRadius: 10,
+                      background: `${ex.color}25`, display: 'flex',
+                      alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                    }}>
+                      <svg width={18} height={18} viewBox="0 0 24 24" fill={ex.color}>
+                        <path d="M6.5 2A2.5 2.5 0 0 0 4 4.5V9H3a1 1 0 0 0-1 1v4a1 1 0 0 0 1 1h1v4.5A2.5 2.5 0 0 0 6.5 22h1A2.5 2.5 0 0 0 10 19.5V15h4v4.5a2.5 2.5 0 0 0 2.5 2.5h1a2.5 2.5 0 0 0 2.5-2.5V15h1a1 1 0 0 0 1-1v-4a1 1 0 0 0-1-1h-1V4.5A2.5 2.5 0 0 0 17.5 2h-1A2.5 2.5 0 0 0 14 4.5V9h-4V4.5A2.5 2.5 0 0 0 7.5 2h-1z" />
+                      </svg>
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: 14, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {ex.name}
+                      </p>
+                      <p style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+                        {ex.category} · {ex.defaultSets}×{ex.defaultReps}
+                      </p>
+                    </div>
+                    {isSelected && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {isPartOfSuperset && (
+                          <span style={{ fontSize: 11, color: '#0891b2', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4, background: 'rgba(6,182,212,0.1)', padding: '2px 8px', borderRadius: 9999 }}>
+                            <LinkIcon size={12} /> Superset
+                          </span>
+                        )}
+                        <svg width={22} height={22} viewBox="0 0 24 24" fill={isPartOfSuperset ? "#0891b2" : "#7a9a0a"}>
+                          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+                        </svg>
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            <button
+              onClick={() => setEditingDayIndex(null)}
+              className="btn-primary"
+              style={{ width: '100%', marginTop: 20 }}
+            >
+              Done — {day.exerciseIds.length} exercises
+            </button>
+
+            {/* ── Add Superset Modal Overlay ── */}
+            {showAddSupersetModal && (
+              <div
+                onClick={() => setShowAddSupersetModal(false)}
+                style={{
+                  position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.4)',
+                  backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
+                  zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  padding: 20, animation: 'fadeIn 0.2s ease-out forwards',
+                }}
+              >
+                <div
+                  onClick={e => e.stopPropagation()}
+                  style={{
+                    background: 'white', borderRadius: 24, padding: 24,
+                    width: '100%', maxWidth: 340, boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)',
+                    maxHeight: '80dvh', display: 'flex', flexDirection: 'column',
+                  }}
+                >
+                  <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 6, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <LinkIcon size={18} /> Link Superset
+                  </h3>
+                  <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16 }}>
+                    Select exactly 2 exercises from your selected list to pair them.
+                  </p>
+
+                  <div style={{ overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20, paddingRight: 4 }}>
+                    {day.exerciseIds.map(exId => {
+                      const exDef = EXERCISES.find(e => e.id === exId);
+                      if (!exDef) return null;
+                      const isChosen = selectedSupersetExercises.includes(exId);
+                      const isAlreadyInAnotherSuperset = daySupersets.some(ss => ss.includes(exId));
+                      return (
+                        <button
+                          key={exId}
+                          disabled={isAlreadyInAnotherSuperset}
+                          onClick={() => {
+                            if (isChosen) {
+                              setSelectedSupersetExercises(prev => prev.filter(id => id !== exId));
+                            } else {
+                              if (selectedSupersetExercises.length >= 2) return;
+                              setSelectedSupersetExercises(prev => [...prev, exId]);
+                            }
+                          }}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px',
+                            borderRadius: 14, border: isChosen ? '2px solid #06b6d4' : '1px solid var(--border-light)',
+                            background: isChosen ? 'rgba(6,182,212,0.04)' : (isAlreadyInAnotherSuperset ? 'var(--input-bg)' : 'white'),
+                            opacity: isAlreadyInAnotherSuperset ? 0.5 : 1,
+                            cursor: isAlreadyInAnotherSuperset ? 'default' : 'pointer',
+                            fontFamily: 'inherit', textAlign: 'left', width: '100%',
+                          }}
+                        >
+                          <div style={{
+                            width: 20, height: 20, borderRadius: 4,
+                            border: '2px solid ' + (isChosen ? '#06b6d4' : 'var(--border-light)'),
+                            background: isChosen ? '#06b6d4' : 'white',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          }}>
+                            {isChosen && <span style={{ color: 'white', fontSize: 12, fontWeight: 900 }}>✓</span>}
+                          </div>
+                          <div style={{ flex: 1 }}>
+                            <p style={{ fontSize: 14, fontWeight: 600 }}>{exDef.name}</p>
+                            {isAlreadyInAnotherSuperset && (
+                              <p style={{ fontSize: 11, color: '#0891b2', fontWeight: 600 }}>Already in a superset</p>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <button
+                      onClick={() => setShowAddSupersetModal(false)}
+                      style={{
+                        flex: 1, height: 48, borderRadius: 9999, border: '1px solid var(--border-light)',
+                        background: 'white', color: 'var(--text-primary)', fontWeight: 700,
+                        cursor: 'pointer', fontSize: 14, fontFamily: 'inherit',
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      disabled={selectedSupersetExercises.length !== 2}
+                      onClick={() => {
+                        addSupersetToDay(selectedSupersetExercises[0], selectedSupersetExercises[1]);
+                        setShowAddSupersetModal(false);
+                      }}
+                      style={{
+                        flex: 1, height: 48, borderRadius: 9999, border: 'none',
+                        background: selectedSupersetExercises.length === 2 ? '#06b6d4' : 'var(--input-bg)',
+                        color: selectedSupersetExercises.length === 2 ? 'white' : 'var(--text-secondary)',
+                        fontWeight: 700, cursor: selectedSupersetExercises.length === 2 ? 'pointer' : 'default',
+                        fontSize: 14, fontFamily: 'inherit',
+                      }}
+                    >
+                      Link
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* ── Bottom action button ── */}
       {!(step === 3 && editingDayIndex !== null) && (

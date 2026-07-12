@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useCallback, useEffect, Suspense } from 'react';
+import { useState, useCallback, useEffect, Suspense, useRef, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { EXERCISES, CATEGORIES, getExercisesByCategory, type ExerciseDefinition } from '@/lib/exercises';
-import type { WorkoutSet, Template } from '@/lib/types';
+import type { WorkoutSet, Template, Split, Workout, SplitDay } from '@/lib/types';
 import RestTimer from '@/components/RestTimer';
 import { useSettings } from '@/components/SettingsContext';
 
@@ -36,6 +36,12 @@ const ClipboardFilledIcon = ({ size = 16, color = 'currentColor' }: { size?: num
 const SaveFilledIcon = ({ size = 16, color = 'currentColor' }: { size?: number; color?: string }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
     <path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z" />
+  </svg>
+);
+
+const LinkIcon = ({ size = 16, color = 'currentColor' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+    <path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z" />
   </svg>
 );
 
@@ -103,7 +109,6 @@ function LogWorkoutContent() {
   const [workoutName, setWorkoutName] = useState('My Workout');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [addedExercises, setAddedExercises] = useState<AddedExercise[]>([]);
-  const [showTimer, setShowTimer] = useState(false);
   const [startTime] = useState<Date>(() => new Date());
   const [saving, setSaving] = useState(false);
   const [showExercisePicker, setShowExercisePicker] = useState(true);
@@ -118,6 +123,88 @@ function LogWorkoutContent() {
   const [showSaveTemplatePrompt, setShowSaveTemplatePrompt] = useState(false);
   const [templateSaving, setTemplateSaving] = useState(false);
   const [templateSaved, setTemplateSaved] = useState(false);
+
+  // New features states
+  const [supersets, setSupersets] = useState<string[][]>([]);
+  const [activeSplit, setActiveSplit] = useState<Split | null>(null);
+  const [workoutNotes, setWorkoutNotes] = useState('');
+  const [finishedWorkout, setFinishedWorkout] = useState<Workout | null>(null);
+
+  // Superset selection on log screen
+  const [showAddSupersetModal, setShowAddSupersetModal] = useState(false);
+  const [selectedSupersetExercises, setSelectedSupersetExercises] = useState<string[]>([]);
+
+  const addSupersetOnLog = useCallback((exId1: string, exId2: string) => {
+    setSupersets(prev => {
+      const cleaned = prev.filter(pair => !pair.includes(exId1) && !pair.includes(exId2));
+      return [...cleaned, [exId1, exId2]];
+    });
+  }, []);
+
+  const removeSupersetOnLog = useCallback((exerciseId: string) => {
+    setSupersets(prev => prev.filter(pair => !pair.includes(exerciseId)));
+  }, []);
+
+  // Bottom Sheet state
+  const [logSheet, setLogSheet] = useState<{
+    exerciseId: string;
+    setIndex: number;
+    weight: number;
+    reps: number;
+  } | null>(null);
+
+  // Plate Calculator state
+  const [showPlateCalc, setShowPlateCalc] = useState(false);
+  const [barbellWeight, setBarbellWeight] = useState(20);
+
+  // Rest Timer state
+  const [restSeconds, setRestSeconds] = useState(0);
+  const [restActive, setRestActive] = useState(false);
+  const [restTotal, setRestTotal] = useState(60);
+  const [restExpanded, setRestExpanded] = useState(false);
+
+  // Long press set menu
+  const [longPressedSet, setLongPressedSet] = useState<{ exerciseId: string; setIndex: number; x: number; y: number } | null>(null);
+
+  // Refs for pointer holds
+  const holdIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const holdTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Load active split
+  useEffect(() => {
+    import('@/lib/storage').then(async ({ getActiveSplit }) => {
+      setActiveSplit(await getActiveSplit());
+    });
+  }, []);
+
+  // Rest Timer Interval Countdown and Vibration
+  useEffect(() => {
+    if (!restActive || restSeconds <= 0) return;
+
+    const interval = setInterval(() => {
+      setRestSeconds(prev => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          setRestActive(false);
+          if (typeof navigator !== 'undefined' && navigator.vibrate) {
+            navigator.vibrate([300, 100, 300, 100, 300]);
+          }
+          return 0;
+        }
+
+        if (prev === 11) {
+          if (typeof navigator !== 'undefined' && navigator.vibrate) {
+            navigator.vibrate([100, 100, 100]);
+          }
+        }
+
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [restActive, restSeconds]);
 
   const loadTemplatesList = useCallback(async () => {
     const { getTemplates } = await import('@/lib/storage');
@@ -145,10 +232,35 @@ function LogWorkoutContent() {
         })),
       }))
     );
+    setSupersets(template.supersets || []);
     setShowTemplates(false);
     setShowExercisePicker(false);
     const { updateTemplateLastUsed } = await import('@/lib/storage');
     await updateTemplateLastUsed(template.id);
+  }, []);
+
+  const handleLoadSplitDay = useCallback(async (day: SplitDay) => {
+    setWorkoutName(day.name);
+    setAddedExercises(
+      day.exerciseIds.map((exId) => {
+        const def = EXERCISES.find(e => e.id === exId);
+        return {
+          exerciseId: exId,
+          exerciseName: def?.name || exId,
+          category: def?.category || 'Push',
+          color: def?.color || '#C8F135',
+          sets: Array.from({ length: def?.defaultSets || 3 }, (_, i) => ({
+            setNumber: i + 1,
+            weight: 0,
+            reps: def?.defaultReps || 10,
+            completed: false,
+          })),
+        };
+      })
+    );
+    setSupersets(day.supersets || []);
+    setShowTemplates(false);
+    setShowExercisePicker(false);
   }, []);
 
   const handleSaveAsTemplate = useCallback(async () => {
@@ -169,6 +281,7 @@ function LogWorkoutContent() {
             completed: false,
           })),
         })),
+        supersets: supersets,
         createdAt: new Date().toISOString(),
       };
       await saveTemplate(template);
@@ -179,7 +292,7 @@ function LogWorkoutContent() {
     } finally {
       setTemplateSaving(false);
     }
-  }, [saveAsTemplateName, addedExercises, templateSaving]);
+  }, [saveAsTemplateName, addedExercises, templateSaving, supersets]);
 
   /* — auto-add exercises from URL params and load history -------------------- */
   useEffect(() => {
@@ -276,11 +389,287 @@ function LogWorkoutContent() {
 
   }, [searchParams, initialized]);
 
+  // Helper to adjust number values in weight/reps pickers
+  const adjustVal = useCallback((direction: 'up' | 'down', amount: number, type: 'weight' | 'reps') => {
+    setLogSheet(prev => {
+      if (!prev) return null;
+      if (type === 'weight') {
+        const nextVal = Math.max(0, prev.weight + (direction === 'up' ? amount : -amount));
+        return { ...prev, weight: nextVal };
+      } else {
+        const nextVal = Math.max(1, prev.reps + (direction === 'up' ? amount : -amount));
+        return { ...prev, reps: nextVal };
+      }
+    });
+  }, []);
+
+  const handlePointerDown = (direction: 'up' | 'down', type: 'weight' | 'reps') => {
+    const isWeight = type === 'weight';
+    const amount = isWeight ? 2.5 : 1;
+    const longAmount = isWeight ? 5.0 : 2;
+    
+    adjustVal(direction, amount, type);
+    
+    const timer = setTimeout(() => {
+      const interval = setInterval(() => {
+        adjustVal(direction, longAmount, type);
+      }, 150);
+      holdIntervalRef.current = interval;
+    }, 500);
+    holdTimeoutRef.current = timer;
+  };
+
+  const handlePointerUp = () => {
+    if (holdTimeoutRef.current) clearTimeout(holdTimeoutRef.current);
+    if (holdIntervalRef.current) clearInterval(holdIntervalRef.current);
+  };
+
+  // Trigger Rest Timer
+  const triggerRestTimer = useCallback(() => {
+    const duration = typeof window !== 'undefined' ? parseInt(localStorage.getItem('setting_restTimerDuration') || '90', 10) : 90;
+    setRestSeconds(duration);
+    setRestTotal(duration);
+    setRestActive(true);
+  }, []);
+
+  // Log set from bottom sheet
+  const logSetFromSheet = useCallback((exerciseId: string, setIndex: number, weight: number, reps: number) => {
+    setAddedExercises(prev => prev.map(ex => {
+      if (ex.exerciseId !== exerciseId) return ex;
+      
+      let nextSets = [...ex.sets];
+      if (setIndex >= 0 && setIndex < nextSets.length) {
+        nextSets[setIndex] = {
+          ...nextSets[setIndex],
+          weight,
+          reps,
+          completed: true,
+        };
+      } else {
+        nextSets.push({
+          setNumber: nextSets.length + 1,
+          weight,
+          reps,
+          completed: true,
+        });
+      }
+      
+      // Auto start rest timer or do superset check
+      setTimeout(() => {
+        const pair = supersets.find(p => p.includes(exerciseId));
+        if (pair) {
+          const otherId = pair.find(id => id !== exerciseId)!;
+          const otherEx = prev.find(e => e.exerciseId === otherId);
+          const thisCompletedCount = nextSets.filter(s => s.completed).length;
+          const otherCompletedCount = otherEx?.sets.filter(s => s.completed).length || 0;
+          if (thisCompletedCount === otherCompletedCount) {
+            triggerRestTimer();
+          }
+        } else {
+          triggerRestTimer();
+        }
+      }, 0);
+
+      return {
+        ...ex,
+        sets: nextSets,
+      };
+    }));
+    
+    setLogSheet(null);
+  }, [supersets, triggerRestTimer]);
+
+  // Repeat last set instantly
+  const repeatLastSet = useCallback((exerciseId: string) => {
+    setAddedExercises(prev => prev.map(ex => {
+      if (ex.exerciseId !== exerciseId) return ex;
+      const lastCompletedSet = [...ex.sets].reverse().find(s => s.completed) || ex.sets[ex.sets.length - 1];
+      if (!lastCompletedSet) return ex;
+      
+      const firstUncompletedIndex = ex.sets.findIndex(s => !s.completed);
+      let nextSets = [...ex.sets];
+      
+      if (firstUncompletedIndex !== -1) {
+        nextSets[firstUncompletedIndex] = {
+          ...nextSets[firstUncompletedIndex],
+          weight: lastCompletedSet.weight,
+          reps: lastCompletedSet.reps,
+          completed: true,
+        };
+      } else {
+        nextSets.push({
+          setNumber: nextSets.length + 1,
+          weight: lastCompletedSet.weight,
+          reps: lastCompletedSet.reps,
+          completed: true,
+        });
+      }
+      
+      // Auto start rest timer or do superset check
+      setTimeout(() => {
+        const pair = supersets.find(p => p.includes(exerciseId));
+        if (pair) {
+          const otherId = pair.find(id => id !== exerciseId)!;
+          const otherEx = prev.find(e => e.exerciseId === otherId);
+          const thisCompletedCount = nextSets.filter(s => s.completed).length;
+          const otherCompletedCount = otherEx?.sets.filter(s => s.completed).length || 0;
+          if (thisCompletedCount === otherCompletedCount) {
+            triggerRestTimer();
+          }
+        } else {
+          triggerRestTimer();
+        }
+      }, 0);
+
+      return {
+        ...ex,
+        sets: nextSets,
+      };
+    }));
+  }, [supersets, triggerRestTimer]);
+
+  const handleOpenLogSheet = useCallback((exerciseId: string) => {
+    const ex = addedExercises.find(e => e.exerciseId === exerciseId);
+    if (!ex) return;
+    
+    const firstUncompletedIndex = ex.sets.findIndex(s => !s.completed);
+    
+    let prefilledWeight = 0;
+    let prefilledReps = 10;
+    
+    const lastCompletedSet = [...ex.sets].reverse().find(s => s.completed);
+    if (lastCompletedSet) {
+      prefilledWeight = lastCompletedSet.weight;
+      prefilledReps = lastCompletedSet.reps;
+    } else {
+      const history = exerciseHistory[exerciseId];
+      if (history) {
+        prefilledWeight = history.lastWeight;
+        prefilledReps = history.lastReps;
+      } else {
+        const def = EXERCISES.find(e => e.id === exerciseId);
+        if (def) {
+          prefilledReps = def.defaultReps;
+        }
+      }
+    }
+    
+    setLogSheet({
+      exerciseId,
+      setIndex: firstUncompletedIndex !== -1 ? firstUncompletedIndex : -1,
+      weight: prefilledWeight,
+      reps: prefilledReps,
+    });
+  }, [addedExercises, exerciseHistory]);
+
+  const deleteSetAtIndex = useCallback((exerciseId: string, setIndex: number) => {
+    setAddedExercises(prev => prev.map(ex => {
+      if (ex.exerciseId !== exerciseId) return ex;
+      return {
+        ...ex,
+        sets: ex.sets
+          .filter((_, idx) => idx !== setIndex)
+          .map((s, i) => ({ ...s, setNumber: i + 1 })),
+      };
+    }));
+    setLongPressedSet(null);
+  }, []);
+
+  const startEditSetFromMenu = useCallback((exerciseId: string, setIndex: number) => {
+    const ex = addedExercises.find(e => e.exerciseId === exerciseId);
+    if (!ex) return;
+    const targetSet = ex.sets[setIndex];
+    if (!targetSet) return;
+    
+    setLogSheet({
+      exerciseId,
+      setIndex,
+      weight: targetSet.weight,
+      reps: targetSet.reps,
+    });
+    setLongPressedSet(null);
+  }, [addedExercises]);
+
+  const handleSetPillPointerDown = useCallback((e: React.PointerEvent, exerciseId: string, setIndex: number) => {
+    const clientX = e.clientX;
+    const clientY = e.clientY;
+    
+    longPressTimeoutRef.current = setTimeout(() => {
+      setLongPressedSet({ exerciseId, setIndex, x: clientX, y: clientY });
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        navigator.vibrate(50);
+      }
+    }, 600);
+  }, []);
+
+  const handleSetPillPointerUp = useCallback(() => {
+    if (longPressTimeoutRef.current) {
+      clearTimeout(longPressTimeoutRef.current);
+    }
+  }, []);
+
+  const calculatePlates = useCallback((target: number, bar: number) => {
+    let weightPerSide = (target - bar) / 2;
+    if (weightPerSide <= 0) return [];
+    
+    const availablePlates = [25, 20, 15, 10, 5, 2.5, 1.25];
+    const result: { plate: number; count: number }[] = [];
+    
+    for (const plate of availablePlates) {
+      if (weightPerSide >= plate) {
+        const count = Math.floor(weightPerSide / plate);
+        result.push({ plate, count });
+        weightPerSide %= plate;
+      }
+    }
+    return result;
+  }, []);
+
+  const touchStartY = useRef(0);
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartY.current = e.touches[0].clientY;
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    const diff = touchStartY.current - e.touches[0].clientY;
+    if (diff > 40) {
+      setRestActive(false);
+    }
+  }, []);
+
   /* — derived ---------------------------------------------- */
   const filteredExercises = getExercisesByCategory(selectedCategory);
   const hasCompletedSet = addedExercises.some((ex) =>
     ex.sets.some((s) => s.completed),
   );
+  const isPickerVisible = showExercisePicker || addedExercises.length === 0;
+
+  const renderedItems = useMemo(() => {
+    const items: ({ type: 'single'; exercise: AddedExercise } | { type: 'superset'; exercises: [AddedExercise, AddedExercise] })[] = [];
+    const processedIds = new Set<string>();
+
+    for (const ex of addedExercises) {
+      if (processedIds.has(ex.exerciseId)) continue;
+
+      const ss = supersets.find(pair => pair.includes(ex.exerciseId));
+      if (ss) {
+        const ex1 = addedExercises.find(e => e.exerciseId === ss[0]);
+        const ex2 = addedExercises.find(e => e.exerciseId === ss[1]);
+
+        if (ex1 && ex2) {
+          items.push({ type: 'superset', exercises: [ex1, ex2] });
+          processedIds.add(ex1.exerciseId);
+          processedIds.add(ex2.exerciseId);
+          continue;
+        }
+      }
+
+      items.push({ type: 'single', exercise: ex });
+      processedIds.add(ex.exerciseId);
+    }
+
+    return items;
+  }, [addedExercises, supersets]);
 
   /* — handlers --------------------------------------------- */
   const addExercise = useCallback(
@@ -306,6 +695,7 @@ function LogWorkoutContent() {
 
   const removeExercise = useCallback((exerciseId: string) => {
     setAddedExercises((prev) => prev.filter((e) => e.exerciseId !== exerciseId));
+    setSupersets((prev) => prev.filter((pair) => !pair.includes(exerciseId)));
   }, []);
 
   const updateSet = useCallback(
@@ -345,7 +735,18 @@ function LogWorkoutContent() {
       
       // Auto-show rest timer when completing a set (not unchecking)
       if (!wasCompleted) {
-        setShowTimer(true);
+        const pair = supersets.find(p => p.includes(exerciseId));
+        if (pair) {
+          const otherId = pair.find(id => id !== exerciseId)!;
+          const otherEx = prev.find(e => e.exerciseId === otherId);
+          const thisCompletedCount = (exercise?.sets.filter(s => s.completed).length || 0) + 1;
+          const otherCompletedCount = otherEx?.sets.filter(s => s.completed).length || 0;
+          if (thisCompletedCount === otherCompletedCount) {
+            triggerRestTimer();
+          }
+        } else {
+          triggerRestTimer();
+        }
         
         // PR Detection (only when marking complete)
         const setWeight = setBeforeUpdate?.weight || 0;
@@ -430,8 +831,6 @@ function LogWorkoutContent() {
     setSaving(true);
 
     try {
-      const { saveWorkout } = await import('@/lib/storage');
-      
       let setsCount = 0;
       let totalVol = 0;
       addedExercises.forEach(ex => {
@@ -454,14 +853,27 @@ function LogWorkoutContent() {
           exerciseName: ex.exerciseName,
           sets: ex.sets,
         })),
+        supersets: supersets,
       };
-      await saveWorkout(workout);
+      
+      setFinishedWorkout(workout);
       setWorkoutFinishedStats({ sets: setsCount, volume: totalVol, duration });
-      setTimeout(() => {
-        router.push('/app');
-      }, 5000);
     } catch {
       setSaving(false);
+    }
+  };
+
+  const handleSaveWorkoutNotesAndExit = async () => {
+    if (!finishedWorkout) return;
+    try {
+      const { saveWorkout } = await import('@/lib/storage');
+      await saveWorkout({
+        ...finishedWorkout,
+        notes: workoutNotes.trim() || undefined,
+      });
+      router.push('/app');
+    } catch (e) {
+      console.error(e);
     }
   };
 
@@ -539,232 +951,347 @@ function LogWorkoutContent() {
       {/* ─── Added Exercises ─── */}
       {addedExercises.length > 0 && (
         <div style={{ marginBottom: 24 }}>
-          <h2 className="section-heading" style={{ marginBottom: 16 }}>
-            Exercises ({addedExercises.length})
-          </h2>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <h2 className="section-heading" style={{ margin: 0 }}>
+              Exercises ({addedExercises.length})
+            </h2>
+            {addedExercises.length >= 2 && (
+              <button
+                onClick={() => {
+                  setSelectedSupersetExercises([]);
+                  setShowAddSupersetModal(true);
+                }}
+                style={{
+                  fontSize: 12, fontWeight: 700, color: 'var(--text-primary)',
+                  background: 'var(--lime)', border: 'none', borderRadius: 9999,
+                  padding: '6px 14px', cursor: 'pointer', fontFamily: 'inherit',
+                  display: 'flex', alignItems: 'center', gap: 6,
+                }}
+              >
+                <LinkIcon size={14} color="var(--text-primary)" /> Add Superset
+              </button>
+            )}
+          </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {addedExercises.map((ex) => (
-              <div className="card" key={ex.exerciseId}>
-                {/* Exercise header */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', color: ex.color }}>
-                      {getCategoryIcon(ex.category, 24)}
-                    </div>
-                    <span style={{ fontWeight: 700, fontSize: 16 }}>{ex.exerciseName}</span>
-                  </div>
-                  <button
-                    onClick={() => removeExercise(ex.exerciseId)}
-                    aria-label={`Remove ${ex.exerciseName}`}
-                    style={{
-                      width: 36,
-                      height: 36,
-                      borderRadius: '50%',
-                      border: '1px solid var(--border-light)',
-                      background: 'white',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                      flexShrink: 0,
-                    }}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth={2} strokeLinecap="round">
-                      <line x1="18" y1="6" x2="6" y2="18" />
-                      <line x1="6" y1="6" x2="18" y2="18" />
-                    </svg>
-                  </button>
-                </div>
-
-                {/* Progressive Overload Tracker */}
-                <div style={{
-                  background: 'rgba(200, 241, 53, 0.05)',
-                  border: '1px solid rgba(200, 241, 53, 0.2)',
-                  borderRadius: 12,
-                  padding: '12px',
-                  marginBottom: 16,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '8px'
-                }}>
-                  {exerciseHistory[ex.exerciseId]?.lastSets > 0 ? (
-                    <>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Last Time</span>
-                        <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)' }}>
-                          {exerciseHistory[ex.exerciseId].lastSets} × {exerciseHistory[ex.exerciseId].lastReps} × {exerciseHistory[ex.exerciseId].lastWeight}{weightUnit}
+            {renderedItems.map((item, itemIdx) => {
+              if (item.type === 'single') {
+                const ex = item.exercise;
+                const hasLoggedSet = ex.sets.some(s => s.completed);
+                const history = exerciseHistory[ex.exerciseId];
+                
+                return (
+                  <div className="card" key={ex.exerciseId} style={{ position: 'relative', background: 'transparent', border: '1px solid var(--border-light)', boxShadow: 'none' }}>
+                    {/* Exercise Header */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                        <div style={{ width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', color: ex.color, flexShrink: 0 }}>
+                          {getCategoryIcon(ex.category, 20)}
+                        </div>
+                        <span style={{ fontWeight: 800, fontSize: 16, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {ex.exerciseName}
+                        </span>
+                        <span style={{
+                          fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 9999,
+                          background: `${ex.color}20`, color: ex.color, flexShrink: 0
+                        }}>
+                          {ex.category}
                         </span>
                       </div>
-                      
-                      <div style={{ height: 1, background: 'rgba(200, 241, 53, 0.15)', borderRadius: 1 }} />
-                      
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--lime)', textTransform: 'uppercase', letterSpacing: 0.5, display: 'flex', alignItems: 'center', gap: 4 }}>
-                          <TargetIcon size={14} color="var(--lime)" /> Target
-                        </span>
-                        <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
-                          {exerciseHistory[ex.exerciseId].lastSets} × {exerciseHistory[ex.exerciseId].lastReps} × {exerciseHistory[ex.exerciseId].lastWeight + 2.5}{weightUnit}
-                        </span>
-                      </div>
-                    </>
-                  ) : (
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '4px 0' }}>
-                      <FlameIcon size={16} color="var(--lime)" />
-                      <span style={{ fontSize: 13, color: 'var(--lime)', fontWeight: 600 }}>First time — set your baseline!</span>
+                      <button
+                        onClick={() => removeExercise(ex.exerciseId)}
+                        style={{ border: 'none', background: 'none', color: '#ef4444', fontSize: 13, fontWeight: 600, cursor: 'pointer', padding: 4 }}
+                      >
+                        Remove
+                      </button>
                     </div>
-                  )}
-                </div>
 
-                {/* Column headers */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 0 4px', borderBottom: '1px solid var(--border-light)', marginBottom: 4 }}>
-                  <div style={{ width: 32, flexShrink: 0 }}>
-                    <span className="text-secondary" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>Set</span>
-                  </div>
-                  <div style={{ width: 70, textAlign: 'center' }}>
-                    <span className="text-secondary" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>Weight</span>
-                  </div>
-                  <span style={{ fontSize: 13, flexShrink: 0, visibility: 'hidden' }}>{weightUnit}</span>
-                  <div style={{ width: 70, textAlign: 'center' }}>
-                    <span className="text-secondary" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>Reps</span>
-                  </div>
-                  <span style={{ fontSize: 13, flexShrink: 0, visibility: 'hidden' }}>reps</span>
-                  <div style={{ width: 36, flexShrink: 0 }} />
-                </div>
+                    {/* Progressive Overload Hint */}
+                    {history && history.lastSets > 0 ? (
+                      <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 12, fontWeight: 500 }}>
+                        Last: {history.lastWeight}{weightUnit} × {history.lastReps} — Target: {history.lastWeight + 2.5}{weightUnit} × {history.lastReps}
+                      </p>
+                    ) : (
+                      <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 12, fontWeight: 500, fontStyle: 'italic' }}>
+                        First time doing this exercise. Set your baseline!
+                      </p>
+                    )}
 
-                {/* Set rows */}
-                {ex.sets.map((set, setIndex) => (
+                    {/* Logged Set Pills Scroll Row */}
+                    {ex.sets.length > 0 && (
+                      <div className="scroll-row" style={{ gap: 8, marginBottom: 16, paddingBottom: 4 }}>
+                        {ex.sets.map((set, setIdx) => {
+                          const isSetPillCompleted = set.completed;
+                          return (
+                            <div
+                              key={setIdx}
+                              onPointerDown={(e) => handleSetPillPointerDown(e, ex.exerciseId, setIdx)}
+                              onPointerUp={handleSetPillPointerUp}
+                              onPointerLeave={handleSetPillPointerUp}
+                              style={{
+                                flexShrink: 0,
+                                padding: '8px 14px',
+                                borderRadius: 12,
+                                background: isSetPillCompleted ? 'var(--lime)' : 'var(--input-bg)',
+                                border: '1px solid ' + (isSetPillCompleted ? 'transparent' : 'var(--border-light)'),
+                                color: 'var(--text-primary)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 6,
+                                cursor: 'pointer',
+                                userSelect: 'none',
+                                fontWeight: 700,
+                                fontSize: 12,
+                              }}
+                              onClick={() => {
+                                setLogSheet({
+                                  exerciseId: ex.exerciseId,
+                                  setIndex: setIdx,
+                                  weight: set.weight,
+                                  reps: set.reps,
+                                });
+                              }}
+                            >
+                              <span>S{set.setNumber}: {set.weight > 0 ? `${set.weight}${weightUnit}` : '-'} × {set.reps}</span>
+                              {isSetPillCompleted && <span style={{ fontSize: 10 }}>✓</span>}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Card Actions */}
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      {hasLoggedSet && (
+                        <button
+                          onClick={() => repeatLastSet(ex.exerciseId)}
+                          style={{
+                            flex: 1, height: 48, borderRadius: 9999, border: '1px solid var(--lime)',
+                            background: 'transparent', color: 'var(--text-primary)', fontWeight: 700,
+                            cursor: 'pointer', fontSize: 14, fontFamily: 'inherit',
+                          }}
+                        >
+                          Repeat Last Set
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleOpenLogSheet(ex.exerciseId)}
+                        style={{
+                          flex: 2, height: 48, borderRadius: 9999, border: 'none',
+                          background: 'var(--lime)', color: 'var(--text-primary)', fontWeight: 800,
+                          cursor: 'pointer', fontSize: 14, fontFamily: 'inherit',
+                          boxShadow: '0 4px 12px rgba(200,241,53,0.15)',
+                        }}
+                      >
+                        + Log Set
+                      </button>
+                    </div>
+                  </div>
+                );
+              } else {
+                // Superset Card
+                const [exA, exB] = item.exercises;
+                const hasLoggedSetA = exA.sets.some(s => s.completed);
+                const hasLoggedSetB = exB.sets.some(s => s.completed);
+                const historyA = exerciseHistory[exA.exerciseId];
+                const historyB = exerciseHistory[exB.exerciseId];
+
+                return (
                   <div
-                    key={setIndex}
-                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0' }}
-                  >
-                    {/* Set number pill */}
-                    <div
-                      style={{
-                        width: 32,
-                        height: 32,
-                        borderRadius: '50%',
-                        background: set.completed ? 'var(--primary)' : 'var(--input-bg)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontWeight: 700,
-                        fontSize: 13,
-                        flexShrink: 0,
-                      }}
-                    >
-                      {setIndex + 1}
-                    </div>
-
-                    {/* Weight input */}
-                    <input
-                      type="number"
-                      placeholder="0"
-                      value={set.weight || ''}
-                      onChange={(e) => updateSet(ex.exerciseId, setIndex, 'weight', Number(e.target.value))}
-                      style={{
-                        width: 70,
-                        height: 40,
-                        borderRadius: 12,
-                        background: 'var(--input-bg)',
-                        border: 'none',
-                        textAlign: 'center',
-                        fontWeight: 600,
-                        fontSize: 15,
-                        fontFamily: 'inherit',
-                        color: 'var(--text-primary)',
-                        outline: 'none',
-                      }}
-                    />
-                    <span className="text-secondary" style={{ fontSize: 13, flexShrink: 0 }}>{weightUnit}</span>
-
-                    {/* Reps input */}
-                    <input
-                      type="number"
-                      placeholder="0"
-                      value={set.reps || ''}
-                      onChange={(e) => updateSet(ex.exerciseId, setIndex, 'reps', Number(e.target.value))}
-                      style={{
-                        width: 70,
-                        height: 40,
-                        borderRadius: 12,
-                        background: 'var(--input-bg)',
-                        border: 'none',
-                        textAlign: 'center',
-                        fontWeight: 600,
-                        fontSize: 15,
-                        fontFamily: 'inherit',
-                        color: 'var(--text-primary)',
-                        outline: 'none',
-                      }}
-                    />
-                    <span className="text-secondary" style={{ fontSize: 13, flexShrink: 0 }}>reps</span>
-
-                    {/* Complete toggle */}
-                    <button
-                      onClick={() => toggleSetComplete(ex.exerciseId, setIndex)}
-                      aria-label={set.completed ? 'Mark incomplete' : 'Mark complete'}
-                      style={{
-                        width: 36,
-                        height: 36,
-                        borderRadius: '50%',
-                        border: set.completed ? 'none' : '2px solid var(--border-light)',
-                        background: set.completed ? 'var(--primary)' : 'white',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'pointer',
-                        flexShrink: 0,
-                      }}
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={set.completed ? 'var(--text-primary)' : '#cbd5e1'} strokeWidth={3}>
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
-                    </button>
-                  </div>
-                ))}
-
-                {/* Add / Remove set buttons */}
-                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                  <button
-                    onClick={() => addSet(ex.exerciseId)}
+                    className="card"
+                    key={`${exA.exerciseId}-${exB.exerciseId}`}
                     style={{
-                      flex: 1,
-                      height: 40,
-                      borderRadius: 9999,
-                      border: '1px solid var(--border-light)',
-                      background: 'white',
-                      fontWeight: 600,
-                      fontSize: 14,
-                      color: 'var(--text-primary)',
-                      cursor: 'pointer',
-                      fontFamily: 'inherit',
+                      border: '1px solid rgba(6, 182, 212, 0.3)',
+                      background: 'transparent',
+                      boxShadow: 'none',
+                      position: 'relative',
                     }}
                   >
-                    + Add Set
-                  </button>
-                  {ex.sets.length > 1 && (
-                    <button
-                      onClick={() => removeSet(ex.exerciseId, ex.sets.length - 1)}
-                      style={{
-                        height: 40,
-                        borderRadius: 9999,
-                        border: '1px solid var(--border-light)',
-                        background: 'white',
-                        fontWeight: 600,
-                        fontSize: 14,
-                        color: 'var(--text-secondary)',
-                        cursor: 'pointer',
-                        fontFamily: 'inherit',
-                        padding: '0 16px',
-                      }}
-                    >
-                      − Remove
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
+                    {/* Superset Header */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <LinkIcon size={18} color="#0891b2" />
+                        <span style={{ fontSize: 11, fontWeight: 800, color: '#0891b2', textTransform: 'uppercase', letterSpacing: 1 }}>
+                          Superset
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button
+                          onClick={() => removeSupersetOnLog(exA.exerciseId)}
+                          style={{ border: 'none', background: 'none', color: '#0891b2', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
+                        >
+                          Unlink
+                        </button>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                      {/* Exercise A */}
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                          <span style={{ fontWeight: 800, fontSize: 15, color: 'var(--text-primary)' }}>{exA.exerciseName}</span>
+                          <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 9999, background: `${exA.color}15`, color: exA.color }}>{exA.category}</span>
+                        </div>
+
+                        {historyA && historyA.lastSets > 0 ? (
+                          <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 8, fontWeight: 500 }}>
+                            Last: {historyA.lastWeight}{weightUnit} × {historyA.lastReps} · Target: {historyA.lastWeight + 2.5}{weightUnit} × {historyA.lastReps}
+                          </p>
+                        ) : (
+                          <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 8, fontStyle: 'italic' }}>Set baseline</p>
+                        )}
+
+                        {/* Logged pills for A */}
+                        {exA.sets.length > 0 && (
+                          <div className="scroll-row" style={{ gap: 6, marginBottom: 4, paddingBottom: 2 }}>
+                            {exA.sets.map((set, setIdx) => {
+                              const isCompleted = set.completed;
+                              return (
+                                <div
+                                  key={setIdx}
+                                  onPointerDown={(e) => handleSetPillPointerDown(e, exA.exerciseId, setIdx)}
+                                  onPointerUp={handleSetPillPointerUp}
+                                  onPointerLeave={handleSetPillPointerUp}
+                                  style={{
+                                    flexShrink: 0, padding: '6px 12px', borderRadius: 10,
+                                    background: isCompleted ? '#22d3ee' : 'var(--input-bg)',
+                                    border: '1px solid ' + (isCompleted ? 'transparent' : 'var(--border-light)'),
+                                    color: isCompleted ? 'white' : 'var(--text-primary)',
+                                    display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer',
+                                    fontWeight: 700, fontSize: 11,
+                                  }}
+                                  onClick={() => {
+                                    setLogSheet({
+                                      exerciseId: exA.exerciseId,
+                                      setIndex: setIdx,
+                                      weight: set.weight,
+                                      reps: set.reps,
+                                    });
+                                  }}
+                                >
+                                  <span>S{set.setNumber}: {set.weight > 0 ? `${set.weight}${weightUnit}` : '-'} × {set.reps}</span>
+                                  {isCompleted && <span>✓</span>}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Divider line */}
+                      <div style={{ height: 1, background: 'var(--border-light)', margin: '4px 0' }} />
+
+                      {/* Exercise B */}
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                          <span style={{ fontWeight: 800, fontSize: 15, color: 'var(--text-primary)' }}>{exB.exerciseName}</span>
+                          <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 9999, background: `${exB.color}15`, color: exB.color }}>{exB.category}</span>
+                        </div>
+
+                        {historyB && historyB.lastSets > 0 ? (
+                          <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 8, fontWeight: 500 }}>
+                            Last: {historyB.lastWeight}{weightUnit} × {historyB.lastReps} · Target: {historyB.lastWeight + 2.5}{weightUnit} × {historyB.lastReps}
+                          </p>
+                        ) : (
+                          <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 8, fontStyle: 'italic' }}>Set baseline</p>
+                        )}
+
+                        {/* Logged pills for B */}
+                        {exB.sets.length > 0 && (
+                          <div className="scroll-row" style={{ gap: 6, marginBottom: 4, paddingBottom: 2 }}>
+                            {exB.sets.map((set, setIdx) => {
+                              const isCompleted = set.completed;
+                              return (
+                                <div
+                                  key={setIdx}
+                                  onPointerDown={(e) => handleSetPillPointerDown(e, exB.exerciseId, setIdx)}
+                                  onPointerUp={handleSetPillPointerUp}
+                                  onPointerLeave={handleSetPillPointerUp}
+                                  style={{
+                                    flexShrink: 0, padding: '6px 12px', borderRadius: 10,
+                                    background: isCompleted ? '#22d3ee' : 'var(--input-bg)',
+                                    border: '1px solid ' + (isCompleted ? 'transparent' : 'var(--border-light)'),
+                                    color: isCompleted ? 'white' : 'var(--text-primary)',
+                                    display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer',
+                                    fontWeight: 700, fontSize: 11,
+                                  }}
+                                  onClick={() => {
+                                    setLogSheet({
+                                      exerciseId: exB.exerciseId,
+                                      setIndex: setIdx,
+                                      weight: set.weight,
+                                      reps: set.reps,
+                                    });
+                                  }}
+                                >
+                                  <span>S{set.setNumber}: {set.weight > 0 ? `${set.weight}${weightUnit}` : '-'} × {set.reps}</span>
+                                  {isCompleted && <span>✓</span>}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Unified actions grid */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 8 }}>
+                        {/* Actions for A */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                          <button
+                            onClick={() => handleOpenLogSheet(exA.exerciseId)}
+                            style={{
+                              height: 40, borderRadius: 14, border: 'none',
+                              background: '#22d3ee', color: 'white', fontWeight: 800,
+                              cursor: 'pointer', fontSize: 12, fontFamily: 'inherit',
+                            }}
+                          >
+                            + Log Set A
+                          </button>
+                          {hasLoggedSetA && (
+                            <button
+                              onClick={() => repeatLastSet(exA.exerciseId)}
+                              style={{
+                                height: 32, borderRadius: 10, border: '1px solid #22d3ee',
+                                background: 'transparent', color: '#0891b2', fontWeight: 700,
+                                cursor: 'pointer', fontSize: 11, fontFamily: 'inherit',
+                              }}
+                            >
+                              Repeat Set A
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Actions for B */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                          <button
+                            onClick={() => handleOpenLogSheet(exB.exerciseId)}
+                            style={{
+                              height: 40, borderRadius: 14, border: 'none',
+                              background: '#22d3ee', color: 'white', fontWeight: 800,
+                              cursor: 'pointer', fontSize: 12, fontFamily: 'inherit',
+                            }}
+                          >
+                            + Log Set B
+                          </button>
+                          {hasLoggedSetB && (
+                            <button
+                              onClick={() => repeatLastSet(exB.exerciseId)}
+                              style={{
+                                height: 32, borderRadius: 10, border: '1px solid #22d3ee',
+                                background: 'transparent', color: '#0891b2', fontWeight: 700,
+                                cursor: 'pointer', fontSize: 11, fontFamily: 'inherit',
+                              }}
+                            >
+                              Repeat Set B
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+            })}
           </div>
         </div>
       )}
@@ -776,13 +1303,13 @@ function LogWorkoutContent() {
           <h2 className="section-heading">Add Exercise</h2>
           {addedExercises.length > 0 && (
             <button
-              onClick={() => setShowExercisePicker(!showExercisePicker)}
+              onClick={() => setShowExercisePicker(!isPickerVisible)}
               style={{
                 height: 36,
                 paddingInline: 16,
                 borderRadius: 9999,
                 border: '1px solid var(--border-light)',
-                background: showExercisePicker ? 'var(--primary)' : 'white',
+                background: isPickerVisible ? 'var(--primary)' : 'white',
                 fontWeight: 600,
                 fontSize: 13,
                 color: 'var(--text-primary)',
@@ -790,12 +1317,12 @@ function LogWorkoutContent() {
                 fontFamily: 'inherit',
               }}
             >
-              {showExercisePicker ? 'Hide' : 'Show'}
+              {isPickerVisible ? 'Hide' : 'Show'}
             </button>
           )}
         </div>
 
-        {showExercisePicker && (
+        {isPickerVisible && (
           <>
             {/* Category tabs */}
             <div className="scroll-row" style={{ marginBottom: 16 }}>
@@ -891,10 +1418,17 @@ function LogWorkoutContent() {
         )}
       </div>
 
-      {/* ─── Rest Timer ─── */}
+      {/* ─── Rest Timer Action Card ─── */}
       <div style={{ marginBottom: 32 }}>
         <button
-          onClick={() => setShowTimer(!showTimer)}
+          onClick={() => {
+            if (restActive) {
+              setRestExpanded(true);
+            } else {
+              triggerRestTimer();
+              setRestExpanded(true);
+            }
+          }}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -916,38 +1450,20 @@ function LogWorkoutContent() {
               <polyline points="12 6 12 12 16 14" />
             </svg>
             <span style={{ fontWeight: 700, fontSize: 16, color: 'var(--text-primary)' }}>
-              Rest Timer
+              {restActive ? `Resting — ${Math.floor(restSeconds / 60)}:${(restSeconds % 60).toString().padStart(2, '0')}` : 'Start Rest Timer'}
             </span>
           </div>
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="var(--text-secondary)"
-            strokeWidth={2}
-            strokeLinecap="round"
-            style={{
-              transform: showTimer ? 'rotate(180deg)' : 'rotate(0deg)',
-              transition: 'transform 0.2s ease',
-            }}
-          >
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
+          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', background: 'var(--lime)', padding: '4px 12px', borderRadius: 9999 }}>
+            {restActive ? 'Expand' : 'Start'}
+          </span>
         </button>
-
-        {showTimer && (
-          <div className="card" style={{ marginTop: 12, paddingTop: 28, paddingBottom: 28 }}>
-            <RestTimer defaultSeconds={60} autoStart={true} onComplete={() => setShowTimer(false)} />
-          </div>
-        )}
       </div>
 
       {/* ─── Finish Button (fixed) ─── */}
       <div
         style={{
           position: 'fixed',
-          bottom: 110,
+          bottom: 80,
           left: '50%',
           transform: 'translateX(-50%)',
           width: '100%',
@@ -1063,7 +1579,9 @@ function LogWorkoutContent() {
           style={{
             position: 'fixed',
             inset: 0,
-            background: '#0F172A',
+            background: 'rgba(15, 23, 42, 0.75)',
+            backdropFilter: 'blur(24px)',
+            WebkitBackdropFilter: 'blur(24px)',
             zIndex: 10000,
             display: 'flex',
             flexDirection: 'column',
@@ -1079,7 +1597,7 @@ function LogWorkoutContent() {
           </div>
           <h1 style={{ color: 'white', fontSize: 32, fontWeight: 800, marginBottom: 32, lineHeight: 1.1 }}>Workout Complete!</h1>
           
-          <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 24, padding: '32px 24px', width: '100%', maxWidth: 320, marginBottom: 40, border: '1px solid rgba(255,255,255,0.1)' }}>
+          <div style={{ background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', borderRadius: 24, padding: '32px 24px', width: '100%', maxWidth: 320, marginBottom: 40, border: '1px solid rgba(255,255,255,0.12)', boxShadow: '0 8px 32px rgba(0,0,0,0.2)' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
               <div>
                 <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Volume</p>
@@ -1096,8 +1614,34 @@ function LogWorkoutContent() {
             </div>
           </div>
           
+          {/* Notes per Workout */}
+          <div style={{ width: '100%', maxWidth: 320, marginBottom: 24, textAlign: 'left' }}>
+            <label style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: 12, fontWeight: 700, display: 'block', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+              How did it feel today?
+            </label>
+            <textarea
+              value={workoutNotes}
+              onChange={(e) => setWorkoutNotes(e.target.value)}
+              placeholder="Record energy levels, focus, accomplishments, or notes…"
+              style={{
+                width: '100%',
+                height: 90,
+                borderRadius: 16,
+                background: 'rgba(255, 255, 255, 0.08)',
+                border: '1px solid rgba(255,255,255,0.15)',
+                color: 'white',
+                padding: '12px 14px',
+                fontSize: 14,
+                fontFamily: 'inherit',
+                outline: 'none',
+                resize: 'none',
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
+
           <button
-            onClick={() => router.push('/app')}
+            onClick={handleSaveWorkoutNotesAndExit}
             style={{
               width: '100%',
               maxWidth: 320,
@@ -1108,6 +1652,7 @@ function LogWorkoutContent() {
               color: 'var(--text-primary)',
               fontWeight: 700,
               fontSize: 16,
+              fontFamily: 'inherit',
               cursor: 'pointer',
               boxShadow: '0 8px 32px rgba(200, 241, 53, 0.2)',
             }}
@@ -1128,10 +1673,13 @@ function LogWorkoutContent() {
               padding: '16px',
               borderRadius: 9999,
               border: templateSaved ? 'none' : '1px solid rgba(255,255,255,0.2)',
-              background: templateSaved ? 'rgba(200, 241, 53, 0.15)' : 'transparent',
+              background: templateSaved ? 'rgba(200, 241, 53, 0.15)' : 'rgba(255,255,255,0.06)',
+              backdropFilter: 'blur(8px)',
+              WebkitBackdropFilter: 'blur(8px)',
               color: templateSaved ? 'var(--lime)' : 'white',
               fontWeight: 700,
               fontSize: 16,
+              fontFamily: 'inherit',
               cursor: templateSaved ? 'default' : 'pointer',
               marginTop: 12,
               transition: 'all 0.2s ease',
@@ -1193,6 +1741,44 @@ function LogWorkoutContent() {
             </button>
           </div>
 
+          {/* Active Split Days Section */}
+          {activeSplit && (
+            <div style={{ marginBottom: 24 }}>
+              <h3 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 }}>
+                Active Split Days ({activeSplit.name})
+              </h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {activeSplit.days.map((day, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => handleLoadSplitDay(day)}
+                    className="card card-hover"
+                    style={{
+                      padding: '14px 16px', display: 'flex', justifyContent: 'space-between',
+                      alignItems: 'center', cursor: 'pointer', border: 'none',
+                      background: 'white',
+                      fontFamily: 'inherit', textAlign: 'left', width: '100%',
+                    }}
+                  >
+                    <div>
+                      <p style={{ fontSize: 15, fontWeight: 700 }}>{day.name}</p>
+                      <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                        {day.exerciseIds.length} exercises · {(day.supersets || []).length} supersets
+                      </p>
+                    </div>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                      <polyline points="9 18 15 12 9 6" />
+                    </svg>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <h3 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 }}>
+            Saved Templates
+          </h3>
+
           {templates.length === 0 ? (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: 24 }}>
               <div style={{ marginBottom: 16, color: '#94a3b8' }}>
@@ -1207,7 +1793,7 @@ function LogWorkoutContent() {
                 <div
                   key={tmpl.id}
                   className="card card-hover"
-                  style={{ cursor: 'pointer', padding: 18, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                  style={{ cursor: 'pointer', padding: 18, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white' }}
                   onClick={() => handleLoadTemplate(tmpl)}
                 >
                   <div style={{ flex: 1, minWidth: 0, paddingRight: 12 }}>
@@ -1266,6 +1852,8 @@ function LogWorkoutContent() {
           }}
         >
           <div
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
             style={{
               background: 'white',
               borderRadius: 24,
@@ -1281,7 +1869,9 @@ function LogWorkoutContent() {
               type="text"
               value={saveAsTemplateName}
               onChange={(e) => setSaveAsTemplateName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && saveAsTemplateName.trim()) handleSaveAsTemplate(); }}
               placeholder="Template Name"
+              autoFocus
               className="input-field"
               style={{ marginBottom: 20, width: '100%' }}
             />
@@ -1298,8 +1888,8 @@ function LogWorkoutContent() {
                   fontWeight: 700,
                   cursor: 'pointer',
                   fontSize: 14,
-                }}
-              >
+                  fontFamily: 'inherit',
+                }}>
                 Cancel
               </button>
               <button
@@ -1315,6 +1905,7 @@ function LogWorkoutContent() {
                   fontWeight: 700,
                   cursor: 'pointer',
                   fontSize: 14,
+                  fontFamily: 'inherit',
                   opacity: saveAsTemplateName.trim() ? 1 : 0.5
                 }}
               >
@@ -1324,6 +1915,601 @@ function LogWorkoutContent() {
           </div>
         </div>
       )}
+      {/* ─── Gym-Friendly Quick Log Bottom Sheet ─── */}
+      {logSheet && (() => {
+        const exDef = EXERCISES.find(e => e.id === logSheet.exerciseId) || { name: 'Exercise' };
+        
+        return (
+          <div
+            onClick={() => setLogSheet(null)}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(15, 23, 42, 0.4)',
+              backdropFilter: 'blur(8px)',
+              WebkitBackdropFilter: 'blur(8px)',
+              zIndex: 2000,
+              display: 'flex',
+              alignItems: 'flex-end',
+              justifyContent: 'center',
+              animation: 'fadeIn 0.2s ease-out forwards',
+            }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: 'white',
+                borderTopLeftRadius: 32,
+                borderTopRightRadius: 32,
+                padding: '24px 20px 34px',
+                width: '100%',
+                maxWidth: 390,
+                boxShadow: '0 -10px 25px rgba(0,0,0,0.1)',
+                animation: 'slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+                boxSizing: 'border-box',
+              }}
+            >
+              <div style={{ width: 40, height: 4, borderRadius: 2, background: 'var(--border-light)', margin: '0 auto 20px' }} />
+
+              <h3 style={{ fontSize: 18, fontWeight: 900, textAlign: 'center', marginBottom: 24, color: 'var(--text-primary)' }}>
+                {exDef.name}
+              </h3>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 28 }}>
+                {/* Weight Column */}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 }}>
+                    Weight ({weightUnit})
+                  </span>
+                  
+                  <button
+                    onPointerDown={() => handlePointerDown('up', 'weight')}
+                    onPointerUp={handlePointerUp}
+                    onPointerLeave={handlePointerUp}
+                    style={{
+                      width: 56, height: 44, border: 'none', background: 'var(--input-bg)',
+                      borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      color: 'var(--text-primary)', fontSize: 18, cursor: 'pointer',
+                    }}
+                  >
+                    ▲
+                  </button>
+
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={logSheet.weight === 0 ? '' : logSheet.weight}
+                    placeholder="0"
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value);
+                      setLogSheet(prev => prev ? { ...prev, weight: isNaN(val) ? 0 : val } : null);
+                    }}
+                    style={{
+                      fontSize: 40, fontWeight: 800, textAlign: 'center', border: 'none',
+                      outline: 'none', width: '100%', margin: '12px 0', fontFamily: 'monospace',
+                      color: 'var(--text-primary)',
+                    }}
+                  />
+
+                  <button
+                    onPointerDown={() => handlePointerDown('down', 'weight')}
+                    onPointerUp={handlePointerUp}
+                    onPointerLeave={handlePointerUp}
+                    style={{
+                      width: 56, height: 44, border: 'none', background: 'var(--input-bg)',
+                      borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      color: 'var(--text-primary)', fontSize: 18, cursor: 'pointer',
+                    }}
+                  >
+                    ▼
+                  </button>
+
+                  <button
+                    onClick={() => setShowPlateCalc(true)}
+                    style={{
+                      border: 'none', background: 'none', color: '#0891b2', fontSize: 12,
+                      fontWeight: 700, marginTop: 14, cursor: 'pointer', display: 'flex',
+                      alignItems: 'center', gap: 4, fontFamily: 'inherit',
+                    }}
+                  >
+                    Plates Breakdown
+                  </button>
+                </div>
+
+                {/* Reps Column */}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 }}>
+                    Reps
+                  </span>
+                  
+                  <button
+                    onPointerDown={() => handlePointerDown('up', 'reps')}
+                    onPointerUp={handlePointerUp}
+                    onPointerLeave={handlePointerUp}
+                    style={{
+                      width: 56, height: 44, border: 'none', background: 'var(--input-bg)',
+                      borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      color: 'var(--text-primary)', fontSize: 18, cursor: 'pointer',
+                    }}
+                  >
+                    ▲
+                  </button>
+
+                  <input
+                    type="number"
+                    value={logSheet.reps === 0 ? '' : logSheet.reps}
+                    placeholder="0"
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value, 10);
+                      setLogSheet(prev => prev ? { ...prev, reps: isNaN(val) ? 0 : val } : null);
+                    }}
+                    style={{
+                      fontSize: 40, fontWeight: 800, textAlign: 'center', border: 'none',
+                      outline: 'none', width: '100%', margin: '12px 0', fontFamily: 'monospace',
+                      color: 'var(--text-primary)',
+                    }}
+                  />
+
+                  <button
+                    onPointerDown={() => handlePointerDown('down', 'reps')}
+                    onPointerUp={handlePointerUp}
+                    onPointerLeave={handlePointerUp}
+                    style={{
+                      width: 56, height: 44, border: 'none', background: 'var(--input-bg)',
+                      borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      color: 'var(--text-primary)', fontSize: 18, cursor: 'pointer',
+                    }}
+                  >
+                    ▼
+                  </button>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setLogSheet(null)}
+                style={{
+                  width: '100%', border: 'none', background: 'none', color: '#ef4444',
+                  fontWeight: 700, fontSize: 14, marginBottom: 14, cursor: 'pointer',
+                  fontFamily: 'inherit',
+                }}
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={() => logSetFromSheet(logSheet.exerciseId, logSheet.setIndex, logSheet.weight, logSheet.reps)}
+                style={{
+                  width: '100%', height: 56, borderRadius: 9999, border: 'none',
+                  background: 'var(--lime)', color: 'var(--text-primary)', fontWeight: 800,
+                  fontSize: 16, cursor: 'pointer', fontFamily: 'inherit',
+                  boxShadow: '0 8px 24px rgba(200,241,53,0.3)',
+                }}
+              >
+                Log Set ✓
+              </button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ─── Plate Calculator Overlay Modal ─── */}
+      {showPlateCalc && logSheet && (() => {
+        const targetWeight = logSheet.weight;
+        const plateBreakdown = calculatePlates(targetWeight, barbellWeight);
+        
+        return (
+          <div
+            onClick={() => setShowPlateCalc(false)}
+            style={{
+              position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.4)',
+              backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
+              zIndex: 2500, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              padding: 20, animation: 'fadeIn 0.2s ease-out forwards',
+            }}
+          >
+            <div
+              onClick={e => e.stopPropagation()}
+              style={{
+                background: 'white', borderRadius: 24, padding: 24,
+                width: '100%', maxWidth: 320, boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)',
+                boxSizing: 'border-box',
+              }}
+            >
+              <h3 style={{ fontSize: 18, fontWeight: 900, marginBottom: 8, color: 'var(--text-primary)' }}>
+                Plate Calculator
+              </h3>
+              <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20 }}>
+                Breakdown of plates needed per side of the bar.
+              </p>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>Barbell Weight</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <input
+                    type="number"
+                    value={barbellWeight === 0 ? '' : barbellWeight}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value);
+                      setBarbellWeight(isNaN(val) ? 0 : val);
+                    }}
+                    style={{
+                      width: 60, height: 36, borderRadius: 10, border: '1px solid var(--border-light)',
+                      textAlign: 'center', fontWeight: 700, fontSize: 14, outline: 'none',
+                      background: 'var(--input-bg)', color: 'var(--text-primary)',
+                    }}
+                  />
+                  <span style={{ fontSize: 13, fontWeight: 600 }}>{weightUnit}</span>
+                </div>
+              </div>
+
+              <div style={{
+                background: 'var(--input-bg)', borderRadius: 16, padding: 16,
+                marginBottom: 24, textAlign: 'center', border: '1px solid var(--border-light)',
+              }}>
+                <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
+                  Target: {targetWeight}{weightUnit}
+                </p>
+                
+                {plateBreakdown.length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center' }}>
+                    <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4 }}>Each Side:</p>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center' }}>
+                      {plateBreakdown.map((item, idx) => (
+                        <span
+                          key={idx}
+                          style={{
+                            padding: '4px 10px', borderRadius: 8, background: 'white',
+                            border: '1px solid var(--border-light)', fontSize: 12,
+                            fontWeight: 700, color: 'var(--text-primary)', boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
+                          }}
+                        >
+                          {item.count}× {item.plate}kg
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <p style={{ fontSize: 13, fontWeight: 700, color: '#ef4444', margin: '8px 0' }}>
+                    Weight is less than barbell weight!
+                  </p>
+                )}
+              </div>
+
+              <button
+                onClick={() => setShowPlateCalc(false)}
+                style={{
+                  width: '100%', height: 48, borderRadius: 9999, border: 'none',
+                  background: 'var(--text-primary)', color: 'white', fontWeight: 800,
+                  fontSize: 14, cursor: 'pointer', fontFamily: 'inherit',
+                }}
+              >
+                Close Calculator
+              </button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ─── Long Press Set Actions Menu ─── */}
+      {longPressedSet && (
+        <div
+          onClick={() => setLongPressedSet(null)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 5000,
+            background: 'transparent',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: 'fixed',
+              top: Math.min(longPressedSet.y, typeof window !== 'undefined' ? window.innerHeight - 120 : longPressedSet.y),
+              left: Math.min(longPressedSet.x, typeof window !== 'undefined' ? window.innerWidth - 160 : longPressedSet.x),
+              background: 'white',
+              borderRadius: 16,
+              boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
+              border: '1px solid var(--border-light)',
+              padding: '6px',
+              display: 'flex',
+              flexDirection: 'column',
+              zIndex: 5001,
+              width: 140,
+              animation: 'fadeIn 0.15s ease-out forwards',
+            }}
+          >
+            <button
+              onClick={() => startEditSetFromMenu(longPressedSet.exerciseId, longPressedSet.setIndex)}
+              style={{
+                padding: '10px 12px', background: 'none', border: 'none',
+                textAlign: 'left', fontWeight: 600, fontSize: 13,
+                cursor: 'pointer', fontFamily: 'inherit', color: 'var(--text-primary)',
+                borderRadius: 10,
+              }}
+            >
+              Edit Set
+            </button>
+            <button
+              onClick={() => deleteSetAtIndex(longPressedSet.exerciseId, longPressedSet.setIndex)}
+              style={{
+                padding: '10px 12px', background: 'none', border: 'none',
+                textAlign: 'left', fontWeight: 600, fontSize: 13,
+                cursor: 'pointer', fontFamily: 'inherit', color: '#ef4444',
+                borderRadius: 10,
+              }}
+            >
+              Delete Set
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Add Superset Modal Overlay (Log Page) ─── */}
+      {showAddSupersetModal && (
+        <div
+          onClick={() => setShowAddSupersetModal(false)}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.4)',
+            backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
+            zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: 20, animation: 'fadeIn 0.2s ease-out forwards',
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: 'white', borderRadius: 24, padding: 24,
+              width: '100%', maxWidth: 340, boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)',
+              maxHeight: '80dvh', display: 'flex', flexDirection: 'column',
+            }}
+          >
+            <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 6, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <LinkIcon size={18} color="var(--text-primary)" /> Link Superset
+            </h3>
+            <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16 }}>
+              Select exactly 2 exercises from your current list to pair them.
+            </p>
+
+            <div style={{ overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20, paddingRight: 4 }}>
+              {addedExercises.map(ex => {
+                const isChosen = selectedSupersetExercises.includes(ex.exerciseId);
+                const isAlreadyInAnotherSuperset = supersets.some(ss => ss.includes(ex.exerciseId));
+                return (
+                  <button
+                    key={ex.exerciseId}
+                    disabled={isAlreadyInAnotherSuperset}
+                    onClick={() => {
+                      if (isChosen) {
+                        setSelectedSupersetExercises(prev => prev.filter(id => id !== ex.exerciseId));
+                      } else {
+                        if (selectedSupersetExercises.length >= 2) return;
+                        setSelectedSupersetExercises(prev => [...prev, ex.exerciseId]);
+                      }
+                    }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px',
+                      borderRadius: 14, border: isChosen ? '2px solid #06b6d4' : '1px solid var(--border-light)',
+                      background: isChosen ? 'rgba(6,182,212,0.04)' : (isAlreadyInAnotherSuperset ? 'var(--input-bg)' : 'white'),
+                      opacity: isAlreadyInAnotherSuperset ? 0.5 : 1,
+                      cursor: isAlreadyInAnotherSuperset ? 'default' : 'pointer',
+                      fontFamily: 'inherit', textAlign: 'left', width: '100%',
+                    }}
+                  >
+                    <div style={{
+                      width: 20, height: 20, borderRadius: 4,
+                      border: '2px solid ' + (isChosen ? '#06b6d4' : 'var(--border-light)'),
+                      background: isChosen ? '#06b6d4' : 'white',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      {isChosen && <span style={{ color: 'white', fontSize: 12, fontWeight: 900 }}>✓</span>}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ fontSize: 14, fontWeight: 600 }}>{ex.exerciseName}</p>
+                      {isAlreadyInAnotherSuperset && (
+                        <p style={{ fontSize: 11, color: '#0891b2', fontWeight: 600 }}>Already in a superset</p>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => setShowAddSupersetModal(false)}
+                style={{
+                  flex: 1, height: 48, borderRadius: 9999, border: '1px solid var(--border-light)',
+                  background: 'white', color: 'var(--text-primary)', fontWeight: 700,
+                  cursor: 'pointer', fontSize: 14, fontFamily: 'inherit',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                disabled={selectedSupersetExercises.length !== 2}
+                onClick={() => {
+                  addSupersetOnLog(selectedSupersetExercises[0], selectedSupersetExercises[1]);
+                  setShowAddSupersetModal(false);
+                }}
+                style={{
+                  flex: 1, height: 48, borderRadius: 9999, border: 'none',
+                  background: selectedSupersetExercises.length === 2 ? '#06b6d4' : 'var(--input-bg)',
+                  color: selectedSupersetExercises.length === 2 ? 'white' : 'var(--text-secondary)',
+                  fontWeight: 700, cursor: selectedSupersetExercises.length === 2 ? 'pointer' : 'default',
+                  fontSize: 14, fontFamily: 'inherit',
+                }}
+              >
+                Link
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Floating Rest Timer Pill ─── */}
+      {restActive && restSeconds > 0 && !restExpanded && (
+        <div
+          onClick={() => setRestExpanded(true)}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          style={{
+            position: 'fixed',
+            top: 16,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 1500,
+            background: 'rgba(255, 255, 255, 0.85)',
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
+            border: '1px solid var(--border-light)',
+            boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
+            padding: '10px 24px',
+            borderRadius: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            cursor: 'pointer',
+            fontWeight: 800,
+            color: 'var(--text-primary)',
+            fontSize: 14,
+            animation: 'slideDown 0.3s ease-out',
+            boxSizing: 'border-box',
+          }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+            <circle cx="12" cy="12" r="10" />
+            <polyline points="12 6 12 12 16 14" />
+          </svg>
+          <span>Rest {Math.floor(restSeconds / 60)}:{(restSeconds % 60).toString().padStart(2, '0')}</span>
+        </div>
+      )}
+
+      {/* ─── Fullscreen Rest Timer Overlay ─── */}
+      {restActive && restExpanded && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(30px)',
+            WebkitBackdropFilter: 'blur(30px)',
+            zIndex: 3000,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            animation: 'fadeIn 0.25s ease-out forwards',
+            color: 'white',
+          }}
+        >
+          <button
+            onClick={() => setRestExpanded(false)}
+            style={{
+              position: 'absolute',
+              top: 24,
+              right: 24,
+              width: 44,
+              height: 44,
+              borderRadius: '50%',
+              border: 'none',
+              background: 'rgba(255,255,255,0.1)',
+              color: 'white',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+            }}
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+
+          <p style={{ fontSize: 14, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 2, color: 'rgba(255,255,255,0.6)', marginBottom: 20 }}>
+            Resting
+          </p>
+
+          <div style={{
+            fontSize: 72,
+            fontWeight: 800,
+            fontFamily: 'monospace',
+            marginBottom: 40,
+            textShadow: '0 0 20px rgba(255,255,255,0.2)',
+          }}>
+            {Math.floor(restSeconds / 60)}:{(restSeconds % 60).toString().padStart(2, '0')}
+          </div>
+
+          <div style={{ display: 'flex', gap: 16, marginBottom: 48 }}>
+            <button
+              onClick={() => setRestSeconds(prev => Math.max(0, prev - 30))}
+              style={{
+                width: 72,
+                height: 50,
+                borderRadius: 24,
+                border: '1px solid rgba(255,255,255,0.2)',
+                background: 'rgba(255,255,255,0.06)',
+                color: 'white',
+                fontWeight: 700,
+                fontSize: 14,
+                cursor: 'pointer',
+              }}
+            >
+              -30s
+            </button>
+            <button
+              onClick={() => setRestSeconds(prev => prev + 30)}
+              style={{
+                width: 72,
+                height: 50,
+                borderRadius: 24,
+                border: '1px solid rgba(255,255,255,0.2)',
+                background: 'rgba(255,255,255,0.06)',
+                color: 'white',
+                fontWeight: 700,
+                fontSize: 14,
+                cursor: 'pointer',
+              }}
+            >
+              +30s
+            </button>
+          </div>
+
+          <button
+            onClick={() => {
+              setRestActive(false);
+              setRestExpanded(false);
+            }}
+            style={{
+              padding: '16px 40px',
+              borderRadius: 9999,
+              background: 'var(--lime)',
+              color: 'var(--text-primary)',
+              border: 'none',
+              fontWeight: 800,
+              fontSize: 16,
+              cursor: 'pointer',
+              boxShadow: '0 10px 25px rgba(200, 241, 53, 0.3)',
+            }}
+          >
+            Skip Rest
+          </button>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes slideUp {
+          from { transform: translateY(100%); }
+          to { transform: translateY(0); }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes slideDown {
+          from { transform: translate(-50%, -20px); opacity: 0; }
+          to { transform: translate(-50%, 0); opacity: 1; }
+        }
+      `}</style>
     </div>
   );
 }

@@ -67,10 +67,6 @@ export default function BottomNav() {
 
   return (
     <nav className="bottom-nav">
-      <div 
-        className="nav-indicator" 
-        style={{ transform: `translateX(calc(${Math.max(0, navItems.findIndex(item => isActive(item.path)))} * 100%))` }} 
-      />
       {navItems.map((item) => {
         const active = isActive(item.path);
         return (

@@ -21,6 +21,7 @@ export interface Workout {
   durationMinutes?: number;
   notes?: string;
   exercises: WorkoutExercise[];
+  supersets?: string[][]; // e.g. [["bench-press", "chest-fly"]]
 }
 
 export interface ProgressDataPoint {
@@ -48,6 +49,7 @@ export interface BodyWeightEntry {
 export interface SplitDay {
   name: string;
   exerciseIds: string[];
+  supersets?: string[][];
 }
 
 export interface Split {
@@ -63,5 +65,6 @@ export interface Template {
   exercises: WorkoutExercise[];
   lastUsed?: string;
   createdAt: string;
+  supersets?: string[][];
 }
 

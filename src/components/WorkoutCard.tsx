@@ -19,6 +19,7 @@ interface Workout {
   name: string;
   startedAt: string;
   durationMinutes?: number;
+  notes?: string;
   exercises: WorkoutExercise[];
 }
 
@@ -48,7 +49,7 @@ function formatTime(dateStr: string): string {
 export default function WorkoutCard({ workout, onDelete }: WorkoutCardProps) {
   const [expanded, setExpanded] = useState(false);
   const { weightUnit } = useSettings();
-  const { name, startedAt, exercises, durationMinutes } = workout;
+  const { name, startedAt, exercises, durationMinutes, notes } = workout;
 
   const totalSets = exercises.reduce((sum, ex) => sum + ex.sets.length, 0);
   const completedSets = exercises.reduce(
@@ -157,6 +158,22 @@ export default function WorkoutCard({ workout, onDelete }: WorkoutCardProps) {
               </div>
             </div>
           ))}
+
+          {/* Workout Notes */}
+          {notes && (
+            <div style={{
+              marginTop: 14, padding: '12px 16px', borderRadius: 16,
+              background: 'var(--input-bg)', border: '1px solid var(--border-light)',
+              textAlign: 'left',
+            }}>
+              <p style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: 4, letterSpacing: 0.5 }}>
+                Session Notes
+              </p>
+              <p style={{ fontSize: 13, color: 'var(--text-primary)', whiteSpace: 'pre-wrap', fontStyle: 'italic', margin: 0, lineHeight: 1.4 }}>
+                &ldquo;{notes}&rdquo;
+              </p>
+            </div>
+          )}
 
           {/* Delete button */}
           {onDelete && (
