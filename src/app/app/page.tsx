@@ -140,9 +140,23 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
-    if (workouts.length === 0) return;
+    if (typeof window !== 'undefined' && window.location.pathname === '/app') {
+      router.replace('/');
+    }
+  }, [router]);
 
+  useEffect(() => {
     const calculateStreak = async () => {
+      const { db } = await import('@/lib/dexie');
+      
+      if (workouts.length === 0) {
+        setCurrentStreak(0);
+        setLongestStreak(0);
+        await db.settings.put({ key: 'current_streak', value: 0 });
+        await db.settings.put({ key: 'longest_streak', value: 0 });
+        return;
+      }
+
       const getLocalYYYYMMDD = (dateStr: string) => {
         const d = new Date(dateStr);
         const year = d.getFullYear();
@@ -208,7 +222,6 @@ export default function HomePage() {
       setLongestStreak(longest);
 
       // Save to Dexie settings
-      const { db } = await import('@/lib/dexie');
       await db.settings.put({ key: 'current_streak', value: current });
       await db.settings.put({ key: 'longest_streak', value: longest });
 
@@ -216,12 +229,7 @@ export default function HomePage() {
       if (current === 3 || current === 7 || current === 30) {
         const lastShown = localStorage.getItem('last_shown_milestone_streak');
         if (lastShown !== current.toString()) {
-          let msg = '';
-          if (current === 3) msg = 'You are on a roll!';
-          else if (current === 7) msg = 'One week strong!';
-          else if (current === 30) msg = 'Unstoppable!';
-
-          setToastMessage(msg);
+          setToastMessage(`🎉 Congratulations! You reached a ${current}-day streak!`);
           localStorage.setItem('last_shown_milestone_streak', current.toString());
         }
       }
@@ -283,12 +291,33 @@ export default function HomePage() {
             return setSum;
           }, 0), 0), 0);
 
+  // Weekly summary calculations
+  const oneWeekAgo = new Date();
+  oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+  const weeklyWorkouts = workouts.filter(w => new Date(w.startedAt) >= oneWeekAgo);
+  const weeklyCalories = weeklyWorkouts.reduce((sum, w) => sum + (w.calories || 0), 0);
+  const intensityWorkouts = weeklyWorkouts.filter(w => w.intensity !== undefined);
+  const avgIntensityVal = intensityWorkouts.length > 0 
+    ? intensityWorkouts.reduce((sum, w) => sum + (w.intensity || 0), 0) / intensityWorkouts.length 
+    : 0;
+
+  let avgIntensityLabel = 'Easy';
+  let avgIntensityEmoji = '😴';
+  if (avgIntensityVal > 0) {
+    const rounded = Math.round(avgIntensityVal);
+    if (rounded === 1) { avgIntensityLabel = 'Easy'; avgIntensityEmoji = '😴'; }
+    else if (rounded === 2) { avgIntensityLabel = 'OK'; avgIntensityEmoji = '😐'; }
+    else if (rounded === 3) { avgIntensityLabel = 'Good'; avgIntensityEmoji = '💪'; }
+    else if (rounded === 4) { avgIntensityLabel = 'Hard'; avgIntensityEmoji = '🔥'; }
+    else if (rounded === 5) { avgIntensityLabel = 'Beast'; avgIntensityEmoji = '⚡'; }
+  }
+
   // Greeting based on time and gender
   const hour = new Date().getHours();
   const timeGreeting = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
   const personalGreeting = userGender === 'female'
-    ? `Let's crush it, ${userName} 💪`
-    : `Let's get after it, ${userName} 💪`;
+    ? `Let's crush it, ${userName}`
+    : `Let's get after it, ${userName}`;
 
   // Recent exercises from history for "Today's Exercises" section
   const recentExerciseIds = [...new Set(workouts.flatMap(w => w.exercises.map(e => e.exerciseId)))].slice(0, 5);
@@ -493,6 +522,20 @@ export default function HomePage() {
           </button>
         </div>
       )}
+      {/* ── Weekly Summary Card ── */}
+      <div className="card" style={{ marginBottom: 16, padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 6, boxShadow: 'var(--shadow-card)', borderRadius: 24 }}>
+        <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>Weekly Summary</h2>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <p style={{ fontSize: 14, fontWeight: 650, color: 'var(--text-primary)', margin: 0 }}>
+            This week: <span style={{ color: 'var(--text-primary)', fontWeight: 800 }}>{Math.round(weeklyCalories).toLocaleString()} cal</span> burned 🔥
+          </p>
+          {intensityWorkouts.length > 0 && (
+            <p className="text-secondary" style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 4, margin: 0, marginTop: 2 }}>
+              Avg intensity this week: <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{avgIntensityEmoji} {avgIntensityLabel}</span>
+            </p>
+          )}
+        </div>
+      </div>
 
       {/* ── KPI Stats Grid ── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 24 }}>

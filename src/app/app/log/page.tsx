@@ -96,6 +96,7 @@ interface AddedExercise {
   category: string;
   color: string;
   sets: WorkoutSet[];
+  buddySets?: WorkoutSet[];
 }
 
 /* -------------------------------------------------- */
@@ -104,7 +105,7 @@ interface AddedExercise {
 function LogWorkoutContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { weightUnit } = useSettings();
+  const { weightUnit, buddyName, userGender } = useSettings();
 
   const [workoutName, setWorkoutName] = useState('My Workout');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
@@ -130,6 +131,26 @@ function LogWorkoutContent() {
   const [workoutNotes, setWorkoutNotes] = useState('');
   const [finishedWorkout, setFinishedWorkout] = useState<Workout | null>(null);
 
+  // Buddy Mode & Intensity Rating states
+  const [buddyModeActive, setBuddyModeActive] = useState(false);
+  const [intensityRating, setIntensityRating] = useState<number | null>(null);
+  const [showIntensityRatingOverlay, setShowIntensityRatingOverlay] = useState(false);
+
+  const buddyStats = useMemo(() => {
+    if (!buddyModeActive) return null;
+    let setsCount = 0;
+    let totalVol = 0;
+    addedExercises.forEach(ex => {
+      (ex.buddySets || []).forEach(s => {
+        if (s.completed) {
+          setsCount++;
+          totalVol += s.weight * s.reps;
+        }
+      });
+    });
+    return { sets: setsCount, volume: totalVol };
+  }, [addedExercises, buddyModeActive]);
+
   // Superset selection on log screen
   const [showAddSupersetModal, setShowAddSupersetModal] = useState(false);
   const [selectedSupersetExercises, setSelectedSupersetExercises] = useState<string[]>([]);
@@ -151,6 +172,7 @@ function LogWorkoutContent() {
     setIndex: number;
     weight: number;
     reps: number;
+    isBuddy?: boolean;
   } | null>(null);
 
   // Plate Calculator state
@@ -164,7 +186,7 @@ function LogWorkoutContent() {
   const [restExpanded, setRestExpanded] = useState(false);
 
   // Long press set menu
-  const [longPressedSet, setLongPressedSet] = useState<{ exerciseId: string; setIndex: number; x: number; y: number } | null>(null);
+  const [longPressedSet, setLongPressedSet] = useState<{ exerciseId: string; setIndex: number; x: number; y: number; isBuddy?: boolean } | null>(null);
 
   // Refs for pointer holds
   const holdIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -177,6 +199,28 @@ function LogWorkoutContent() {
       setActiveSplit(await getActiveSplit());
     });
   }, []);
+
+  // When buddyModeActive toggles to true, initialize buddySets for any exercise that lacks them
+  useEffect(() => {
+    if (buddyModeActive) {
+      setAddedExercises(prev =>
+        prev.map(ex => {
+          if (!ex.buddySets || ex.buddySets.length === 0) {
+            return {
+              ...ex,
+              buddySets: ex.sets.map(s => ({
+                setNumber: s.setNumber,
+                weight: s.weight,
+                reps: s.reps,
+                completed: false
+              }))
+            };
+          }
+          return ex;
+        })
+      );
+    }
+  }, [buddyModeActive]);
 
   // Rest Timer Interval Countdown and Vibration
   useEffect(() => {
@@ -221,16 +265,20 @@ function LogWorkoutContent() {
   const handleLoadTemplate = useCallback(async (template: Template) => {
     setWorkoutName(template.name);
     setAddedExercises(
-      template.exercises.map((ex) => ({
-        exerciseId: ex.exerciseId,
-        exerciseName: ex.exerciseName,
-        category: EXERCISES.find(e => e.id === ex.exerciseId)?.category || 'Push',
-        color: EXERCISES.find(e => e.id === ex.exerciseId)?.color || '#C8F135',
-        sets: ex.sets.map((s) => ({
+      template.exercises.map((ex) => {
+        const sets = ex.sets.map((s) => ({
           ...s,
           completed: false,
-        })),
-      }))
+        }));
+        return {
+          exerciseId: ex.exerciseId,
+          exerciseName: ex.exerciseName,
+          category: EXERCISES.find(e => e.id === ex.exerciseId)?.category || 'Push',
+          color: EXERCISES.find(e => e.id === ex.exerciseId)?.color || '#C8F135',
+          sets,
+          buddySets: sets.map(s => ({ ...s }))
+        };
+      })
     );
     setSupersets(template.supersets || []);
     setShowTemplates(false);
@@ -244,17 +292,19 @@ function LogWorkoutContent() {
     setAddedExercises(
       day.exerciseIds.map((exId) => {
         const def = EXERCISES.find(e => e.id === exId);
+        const sets = Array.from({ length: def?.defaultSets || 3 }, (_, i) => ({
+          setNumber: i + 1,
+          weight: 0,
+          reps: def?.defaultReps || 10,
+          completed: false,
+        }));
         return {
           exerciseId: exId,
           exerciseName: def?.name || exId,
           category: def?.category || 'Push',
           color: def?.color || '#C8F135',
-          sets: Array.from({ length: def?.defaultSets || 3 }, (_, i) => ({
-            setNumber: i + 1,
-            weight: 0,
-            reps: def?.defaultReps || 10,
-            completed: false,
-          })),
+          sets,
+          buddySets: sets.map(s => ({ ...s }))
         };
       })
     );
@@ -433,11 +483,11 @@ function LogWorkoutContent() {
   }, []);
 
   // Log set from bottom sheet
-  const logSetFromSheet = useCallback((exerciseId: string, setIndex: number, weight: number, reps: number) => {
+  const logSetFromSheet = useCallback((exerciseId: string, setIndex: number, weight: number, reps: number, isBuddy: boolean = false) => {
     setAddedExercises(prev => prev.map(ex => {
       if (ex.exerciseId !== exerciseId) return ex;
       
-      let nextSets = [...ex.sets];
+      let nextSets = isBuddy ? [...(ex.buddySets || [])] : [...ex.sets];
       if (setIndex >= 0 && setIndex < nextSets.length) {
         nextSets[setIndex] = {
           ...nextSets[setIndex],
@@ -460,34 +510,50 @@ function LogWorkoutContent() {
         if (pair) {
           const otherId = pair.find(id => id !== exerciseId)!;
           const otherEx = prev.find(e => e.exerciseId === otherId);
-          const thisCompletedCount = nextSets.filter(s => s.completed).length;
-          const otherCompletedCount = otherEx?.sets.filter(s => s.completed).length || 0;
-          if (thisCompletedCount === otherCompletedCount) {
-            triggerRestTimer();
+          if (isBuddy) {
+            const thisCompletedCount = nextSets.filter(s => s.completed).length;
+            const otherCompletedCount = (otherEx?.buddySets || []).filter(s => s.completed).length || 0;
+            if (thisCompletedCount === otherCompletedCount) {
+              triggerRestTimer();
+            }
+          } else {
+            const thisCompletedCount = nextSets.filter(s => s.completed).length;
+            const otherCompletedCount = otherEx?.sets.filter(s => s.completed).length || 0;
+            if (thisCompletedCount === otherCompletedCount) {
+              triggerRestTimer();
+            }
           }
         } else {
           triggerRestTimer();
         }
       }, 0);
 
-      return {
-        ...ex,
-        sets: nextSets,
-      };
+      if (isBuddy) {
+        return {
+          ...ex,
+          buddySets: nextSets,
+        };
+      } else {
+        return {
+          ...ex,
+          sets: nextSets,
+        };
+      }
     }));
     
     setLogSheet(null);
   }, [supersets, triggerRestTimer]);
 
   // Repeat last set instantly
-  const repeatLastSet = useCallback((exerciseId: string) => {
+  const repeatLastSet = useCallback((exerciseId: string, isBuddy: boolean = false) => {
     setAddedExercises(prev => prev.map(ex => {
       if (ex.exerciseId !== exerciseId) return ex;
-      const lastCompletedSet = [...ex.sets].reverse().find(s => s.completed) || ex.sets[ex.sets.length - 1];
+      const targetSets = isBuddy ? (ex.buddySets || []) : ex.sets;
+      const lastCompletedSet = [...targetSets].reverse().find(s => s.completed) || targetSets[targetSets.length - 1];
       if (!lastCompletedSet) return ex;
       
-      const firstUncompletedIndex = ex.sets.findIndex(s => !s.completed);
-      let nextSets = [...ex.sets];
+      const firstUncompletedIndex = targetSets.findIndex(s => !s.completed);
+      let nextSets = [...targetSets];
       
       if (firstUncompletedIndex !== -1) {
         nextSets[firstUncompletedIndex] = {
@@ -511,33 +577,49 @@ function LogWorkoutContent() {
         if (pair) {
           const otherId = pair.find(id => id !== exerciseId)!;
           const otherEx = prev.find(e => e.exerciseId === otherId);
-          const thisCompletedCount = nextSets.filter(s => s.completed).length;
-          const otherCompletedCount = otherEx?.sets.filter(s => s.completed).length || 0;
-          if (thisCompletedCount === otherCompletedCount) {
-            triggerRestTimer();
+          if (isBuddy) {
+            const thisCompletedCount = nextSets.filter(s => s.completed).length;
+            const otherCompletedCount = (otherEx?.buddySets || []).filter(s => s.completed).length || 0;
+            if (thisCompletedCount === otherCompletedCount) {
+              triggerRestTimer();
+            }
+          } else {
+            const thisCompletedCount = nextSets.filter(s => s.completed).length;
+            const otherCompletedCount = otherEx?.sets.filter(s => s.completed).length || 0;
+            if (thisCompletedCount === otherCompletedCount) {
+              triggerRestTimer();
+            }
           }
         } else {
           triggerRestTimer();
         }
       }, 0);
 
-      return {
-        ...ex,
-        sets: nextSets,
-      };
+      if (isBuddy) {
+        return {
+          ...ex,
+          buddySets: nextSets,
+        };
+      } else {
+        return {
+          ...ex,
+          sets: nextSets,
+        };
+      }
     }));
   }, [supersets, triggerRestTimer]);
 
-  const handleOpenLogSheet = useCallback((exerciseId: string) => {
+  const handleOpenLogSheet = useCallback((exerciseId: string, isBuddy: boolean = false) => {
     const ex = addedExercises.find(e => e.exerciseId === exerciseId);
     if (!ex) return;
     
-    const firstUncompletedIndex = ex.sets.findIndex(s => !s.completed);
+    const targetSets = isBuddy ? (ex.buddySets || []) : ex.sets;
+    const firstUncompletedIndex = targetSets.findIndex(s => !s.completed);
     
     let prefilledWeight = 0;
     let prefilledReps = 10;
     
-    const lastCompletedSet = [...ex.sets].reverse().find(s => s.completed);
+    const lastCompletedSet = [...targetSets].reverse().find(s => s.completed);
     if (lastCompletedSet) {
       prefilledWeight = lastCompletedSet.weight;
       prefilledReps = lastCompletedSet.reps;
@@ -556,29 +638,40 @@ function LogWorkoutContent() {
     
     setLogSheet({
       exerciseId,
-      setIndex: firstUncompletedIndex !== -1 ? firstUncompletedIndex : -1,
+      setIndex: firstUncompletedIndex !== -1 ? firstUncompletedIndex : targetSets.length,
       weight: prefilledWeight,
       reps: prefilledReps,
+      isBuddy
     });
   }, [addedExercises, exerciseHistory]);
 
-  const deleteSetAtIndex = useCallback((exerciseId: string, setIndex: number) => {
+  const deleteSetAtIndex = useCallback((exerciseId: string, setIndex: number, isBuddy: boolean = false) => {
     setAddedExercises(prev => prev.map(ex => {
       if (ex.exerciseId !== exerciseId) return ex;
-      return {
-        ...ex,
-        sets: ex.sets
-          .filter((_, idx) => idx !== setIndex)
-          .map((s, i) => ({ ...s, setNumber: i + 1 })),
-      };
+      if (isBuddy) {
+        const buddySets = ex.buddySets || [];
+        return {
+          ...ex,
+          buddySets: buddySets
+            .filter((_, idx) => idx !== setIndex)
+            .map((s, i) => ({ ...s, setNumber: i + 1 })),
+        };
+      } else {
+        return {
+          ...ex,
+          sets: ex.sets
+            .filter((_, idx) => idx !== setIndex)
+            .map((s, i) => ({ ...s, setNumber: i + 1 })),
+        };
+      }
     }));
     setLongPressedSet(null);
   }, []);
 
-  const startEditSetFromMenu = useCallback((exerciseId: string, setIndex: number) => {
+  const startEditSetFromMenu = useCallback((exerciseId: string, setIndex: number, isBuddy: boolean = false) => {
     const ex = addedExercises.find(e => e.exerciseId === exerciseId);
     if (!ex) return;
-    const targetSet = ex.sets[setIndex];
+    const targetSet = isBuddy ? ex.buddySets?.[setIndex] : ex.sets[setIndex];
     if (!targetSet) return;
     
     setLogSheet({
@@ -586,16 +679,17 @@ function LogWorkoutContent() {
       setIndex,
       weight: targetSet.weight,
       reps: targetSet.reps,
+      isBuddy
     });
     setLongPressedSet(null);
   }, [addedExercises]);
 
-  const handleSetPillPointerDown = useCallback((e: React.PointerEvent, exerciseId: string, setIndex: number) => {
+  const handleSetPillPointerDown = useCallback((e: React.PointerEvent, exerciseId: string, setIndex: number, isBuddy: boolean = false) => {
     const clientX = e.clientX;
     const clientY = e.clientY;
     
     longPressTimeoutRef.current = setTimeout(() => {
-      setLongPressedSet({ exerciseId, setIndex, x: clientX, y: clientY });
+      setLongPressedSet({ exerciseId, setIndex, x: clientX, y: clientY, isBuddy });
       if (typeof navigator !== 'undefined' && navigator.vibrate) {
         navigator.vibrate(50);
       }
@@ -686,7 +780,14 @@ function LogWorkoutContent() {
 
       setAddedExercises((prev) => [
         ...prev,
-        { exerciseId: def.id, exerciseName: def.name, category: def.category, color: def.color, sets },
+        {
+          exerciseId: def.id,
+          exerciseName: def.name,
+          category: def.category,
+          color: def.color,
+          sets,
+          buddySets: sets.map(s => ({ ...s }))
+        },
       ]);
       setShowExercisePicker(false);
     },
@@ -699,38 +800,56 @@ function LogWorkoutContent() {
   }, []);
 
   const updateSet = useCallback(
-    (exerciseId: string, setIndex: number, field: 'weight' | 'reps', value: number) => {
+    (exerciseId: string, setIndex: number, field: 'weight' | 'reps', value: number, isBuddy: boolean = false) => {
       setAddedExercises((prev) =>
-        prev.map((ex) =>
-          ex.exerciseId === exerciseId
-            ? {
-                ...ex,
-                sets: ex.sets.map((s, i) =>
-                  i === setIndex ? { ...s, [field]: value } : s,
-                ),
-              }
-            : ex,
-        ),
+        prev.map((ex) => {
+          if (ex.exerciseId !== exerciseId) return ex;
+          if (isBuddy) {
+            const buddySets = ex.buddySets || [];
+            return {
+              ...ex,
+              buddySets: buddySets.map((s, i) =>
+                i === setIndex ? { ...s, [field]: value } : s,
+              ),
+            };
+          } else {
+            return {
+              ...ex,
+              sets: ex.sets.map((s, i) =>
+                i === setIndex ? { ...s, [field]: value } : s,
+              ),
+            };
+          }
+        }),
       );
     },
     [],
   );
 
-  const toggleSetComplete = useCallback((exerciseId: string, setIndex: number) => {
+  const toggleSetComplete = useCallback((exerciseId: string, setIndex: number, isBuddy: boolean = false) => {
     setAddedExercises((prev) => {
-      const updated = prev.map((ex) =>
-        ex.exerciseId === exerciseId
-          ? {
-              ...ex,
-              sets: ex.sets.map((s, i) =>
-                i === setIndex ? { ...s, completed: !s.completed } : s,
-              ),
-            }
-          : ex,
-      );
+      const updated = prev.map((ex) => {
+        if (ex.exerciseId !== exerciseId) return ex;
+        if (isBuddy) {
+          const buddySets = ex.buddySets || [];
+          return {
+            ...ex,
+            buddySets: buddySets.map((s, i) =>
+              i === setIndex ? { ...s, completed: !s.completed } : s,
+            ),
+          };
+        } else {
+          return {
+            ...ex,
+            sets: ex.sets.map((s, i) =>
+              i === setIndex ? { ...s, completed: !s.completed } : s,
+            ),
+          };
+        }
+      });
       
       const exercise = prev.find(e => e.exerciseId === exerciseId);
-      const setBeforeUpdate = exercise?.sets[setIndex];
+      const setBeforeUpdate = isBuddy ? exercise?.buddySets?.[setIndex] : exercise?.sets[setIndex];
       const wasCompleted = setBeforeUpdate?.completed;
       
       // Auto-show rest timer when completing a set (not unchecking)
@@ -739,97 +858,159 @@ function LogWorkoutContent() {
         if (pair) {
           const otherId = pair.find(id => id !== exerciseId)!;
           const otherEx = prev.find(e => e.exerciseId === otherId);
-          const thisCompletedCount = (exercise?.sets.filter(s => s.completed).length || 0) + 1;
-          const otherCompletedCount = otherEx?.sets.filter(s => s.completed).length || 0;
-          if (thisCompletedCount === otherCompletedCount) {
-            triggerRestTimer();
+          if (isBuddy) {
+            const thisCompletedCount = ((exercise?.buddySets || []).filter(s => s.completed).length || 0) + 1;
+            const otherCompletedCount = (otherEx?.buddySets || []).filter(s => s.completed).length || 0;
+            if (thisCompletedCount === otherCompletedCount) {
+              triggerRestTimer();
+            }
+          } else {
+            const thisCompletedCount = (exercise?.sets.filter(s => s.completed).length || 0) + 1;
+            const otherCompletedCount = otherEx?.sets.filter(s => s.completed).length || 0;
+            if (thisCompletedCount === otherCompletedCount) {
+              triggerRestTimer();
+            }
           }
         } else {
           triggerRestTimer();
         }
         
-        // PR Detection (only when marking complete)
-        const setWeight = setBeforeUpdate?.weight || 0;
-        const setReps = setBeforeUpdate?.reps || 0;
-        const previousMax = exerciseHistory[exerciseId]?.maxWeight || 0;
-        
-        if (setWeight > 0 && setWeight > previousMax) {
-          // New PR!
-          const diff = setWeight - previousMax;
-          setCelebration({
-            show: true,
-            text: `New PR! ${exercise?.exerciseName} — ${setWeight}${weightUnit}`,
-            subtext: previousMax > 0 ? `That's +${diff}${weightUnit} from your previous best!` : `Your first PR for this exercise!`,
-          });
+        // PR Detection (only for user sets)
+        if (!isBuddy) {
+          const setWeight = setBeforeUpdate?.weight || 0;
+          const setReps = setBeforeUpdate?.reps || 0;
+          const previousMax = exerciseHistory[exerciseId]?.maxWeight || 0;
           
-          // Auto-hide celebration after 3s
-          setTimeout(() => setCelebration(c => ({ ...c, show: false })), 3000);
-          
-          // Save PR asynchronously
-          import('@/lib/storage').then(async ({ savePersonalRecord }) => {
-            await savePersonalRecord({
-              exerciseId: exerciseId,
-              exerciseName: exercise?.exerciseName || '',
-              weight: setWeight,
-              reps: setReps,
-              date: new Date().toISOString()
+          if (setWeight > 0 && setWeight > previousMax) {
+            // New PR!
+            const diff = setWeight - previousMax;
+            setCelebration({
+              show: true,
+              text: `New PR! ${exercise?.exerciseName} — ${setWeight}${weightUnit}`,
+              subtext: previousMax > 0 ? `That's +${diff}${weightUnit} from your previous best!` : `Your first PR for this exercise!`,
             });
-          });
-          
-          // Update local history so we don't trigger again in the same session
-          setExerciseHistory(prevHistory => ({
-            ...prevHistory,
-            [exerciseId]: {
-              ...prevHistory[exerciseId],
-              maxWeight: setWeight
-            }
-          }));
+            
+            // Auto-hide celebration after 3s
+            setTimeout(() => setCelebration(c => ({ ...c, show: false })), 3000);
+            
+            // Save PR asynchronously
+            import('@/lib/storage').then(async ({ savePersonalRecord }) => {
+              await savePersonalRecord({
+                exerciseId: exerciseId,
+                exerciseName: exercise?.exerciseName || '',
+                weight: setWeight,
+                reps: setReps,
+                date: new Date().toISOString()
+              });
+            });
+            
+            // Update local history
+            setExerciseHistory(prevHistory => ({
+              ...prevHistory,
+              [exerciseId]: {
+                ...prevHistory[exerciseId],
+                maxWeight: setWeight
+              }
+            }));
+          }
         }
       }
       return updated;
     });
-  }, [exerciseHistory]);
+  }, [exerciseHistory, supersets, weightUnit]);
 
-  const addSet = useCallback((exerciseId: string) => {
+  const addSet = useCallback((exerciseId: string, isBuddy: boolean = false) => {
     setAddedExercises((prev) =>
-      prev.map((ex) =>
-        ex.exerciseId === exerciseId
-          ? {
-              ...ex,
-              sets: [
-                ...ex.sets,
-                {
-                  setNumber: ex.sets.length + 1,
-                  weight: 0,
-                  reps: ex.sets.length > 0 ? ex.sets[ex.sets.length - 1].reps : 10,
-                  completed: false,
-                },
-              ],
-            }
-          : ex,
-      ),
+      prev.map((ex) => {
+        if (ex.exerciseId !== exerciseId) return ex;
+        if (isBuddy) {
+          const buddySets = ex.buddySets || [];
+          return {
+            ...ex,
+            buddySets: [
+              ...buddySets,
+              {
+                setNumber: buddySets.length + 1,
+                weight: 0,
+                reps: buddySets.length > 0 ? buddySets[buddySets.length - 1].reps : 10,
+                completed: false,
+              },
+            ],
+          };
+        } else {
+          return {
+            ...ex,
+            sets: [
+              ...ex.sets,
+              {
+                setNumber: ex.sets.length + 1,
+                weight: 0,
+                reps: ex.sets.length > 0 ? ex.sets[ex.sets.length - 1].reps : 10,
+                completed: false,
+              },
+            ],
+          };
+        }
+      }),
     );
   }, []);
 
-  const removeSet = useCallback((exerciseId: string, setIndex: number) => {
+  const removeSet = useCallback((exerciseId: string, setIndex: number, isBuddy: boolean = false) => {
     setAddedExercises((prev) =>
-      prev.map((ex) =>
-        ex.exerciseId === exerciseId
-          ? {
-              ...ex,
-              sets: ex.sets
-                .filter((_, i) => i !== setIndex)
-                .map((s, i) => ({ ...s, setNumber: i + 1 })),
-            }
-          : ex,
-      ),
+      prev.map((ex) => {
+        if (ex.exerciseId !== exerciseId) return ex;
+        if (isBuddy) {
+          const buddySets = ex.buddySets || [];
+          return {
+            ...ex,
+            buddySets: buddySets
+              .filter((_, i) => i !== setIndex)
+              .map((s, i) => ({ ...s, setNumber: i + 1 })),
+          };
+        } else {
+          return {
+            ...ex,
+            sets: ex.sets
+              .filter((_, i) => i !== setIndex)
+              .map((s, i) => ({ ...s, setNumber: i + 1 })),
+          };
+        }
+      }),
     );
   }, []);
+
+  const calculateCaloriesBurned = async (totalVolume: number, durationMinutes: number, gender: string | null) => {
+    const { getBodyWeights } = await import('@/lib/storage');
+    const weights = await getBodyWeights();
+    const latestWeight = weights.length > 0 ? weights[weights.length - 1].weight : 70;
+    
+    // MET
+    let met = 3.5;
+    if (totalVolume >= 3000 && totalVolume <= 6000) {
+      met = 5.0;
+    } else if (totalVolume > 6000) {
+      met = 6.5;
+    }
+    
+    // gender multiplier
+    const genderMultiplier = gender === 'Female' ? 0.9 : 1.0;
+    
+    const durationHours = durationMinutes / 60;
+    const calories = met * latestWeight * durationHours * genderMultiplier;
+    
+    return Math.round(calories);
+  };
 
   const finishWorkout = async () => {
     if (saving || !hasCompletedSet) return;
-    setSaving(true);
+    // Show intensity overlay first
+    setIntensityRating(null);
+    setShowIntensityRatingOverlay(true);
+  };
 
+  const handleFinishIntensityRating = async (rating: number | null) => {
+    setShowIntensityRatingOverlay(false);
+    setSaving(true);
     try {
       let setsCount = 0;
       let totalVol = 0;
@@ -843,6 +1024,9 @@ function LogWorkoutContent() {
       });
       const duration = Math.round((Date.now() - startTime.getTime()) / 60000);
 
+      // MET calories calculation for User
+      const userCalories = await calculateCaloriesBurned(totalVol, duration, userGender || null);
+
       const workout = {
         name: workoutName,
         startedAt: startTime.toISOString(),
@@ -851,14 +1035,21 @@ function LogWorkoutContent() {
         exercises: addedExercises.map((ex) => ({
           exerciseId: ex.exerciseId,
           exerciseName: ex.exerciseName,
-          sets: ex.sets,
-        })),
+          sets: ex.sets.filter(s => s.completed),
+        })).filter(ex => ex.sets.length > 0),
         supersets: supersets,
+        intensity: rating || undefined,
+        calories: userCalories,
+        buddy: buddyModeActive ? false : undefined,
+        isBuddySession: buddyModeActive ? true : undefined,
+        buddyName: buddyModeActive ? (buddyName || 'Buddy') : undefined
       };
       
       setFinishedWorkout(workout);
       setWorkoutFinishedStats({ sets: setsCount, volume: totalVol, duration });
-    } catch {
+    } catch (e) {
+      console.error(e);
+    } finally {
       setSaving(false);
     }
   };
@@ -867,11 +1058,51 @@ function LogWorkoutContent() {
     if (!finishedWorkout) return;
     try {
       const { saveWorkout } = await import('@/lib/storage');
+      
+      // Save User's workout
       await saveWorkout({
         ...finishedWorkout,
         notes: workoutNotes.trim() || undefined,
       });
-      router.push('/app');
+
+      // If Buddy Mode is active, save Buddy's workout too
+      if (buddyModeActive) {
+        let buddySetsCount = 0;
+        let buddyTotalVol = 0;
+        const buddyExercises = addedExercises.map((ex) => {
+          const completedSets = (ex.buddySets || []).filter(s => s.completed);
+          completedSets.forEach(s => {
+            buddySetsCount++;
+            buddyTotalVol += s.weight * s.reps;
+          });
+          return {
+            exerciseId: ex.exerciseId,
+            exerciseName: ex.exerciseName,
+            sets: completedSets,
+          };
+        }).filter(ex => ex.sets.length > 0);
+
+        if (buddyExercises.length > 0) {
+          const buddyCalories = await calculateCaloriesBurned(buddyTotalVol, finishedWorkout.durationMinutes || 0, 'Male');
+
+          await saveWorkout({
+            name: `${workoutName} (${buddyName || 'Buddy'})`,
+            startedAt: finishedWorkout.startedAt,
+            completedAt: finishedWorkout.completedAt,
+            durationMinutes: finishedWorkout.durationMinutes,
+            exercises: buddyExercises,
+            supersets: finishedWorkout.supersets,
+            notes: `Buddy session with ${finishedWorkout.name}.${workoutNotes.trim() ? ` Notes: ${workoutNotes.trim()}` : ''}`,
+            intensity: finishedWorkout.intensity,
+            calories: buddyCalories,
+            buddy: true,
+            isBuddySession: true,
+            buddyName: buddyName || 'Buddy'
+          });
+        }
+      }
+
+      router.push('/');
     } catch (e) {
       console.error(e);
     }
@@ -884,7 +1115,7 @@ function LogWorkoutContent() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <button
-            onClick={() => router.push('/app')}
+            onClick={() => router.push('/')}
             aria-label="Go back"
             style={{
               width: 44,
@@ -906,33 +1137,111 @@ function LogWorkoutContent() {
           </button>
           <h1 style={{ fontSize: 26, fontWeight: 800, letterSpacing: -0.5 }}>Log Workout</h1>
         </div>
-        <button
-          onClick={() => {
-            setShowTemplates(true);
-            loadTemplatesList();
-          }}
-          style={{
-            height: 38,
-            padding: '0 16px',
-            borderRadius: 9999,
-            border: '1px solid var(--border-light)',
-            background: 'var(--card-bg)',
-            fontWeight: 700,
-            fontSize: 13,
-            color: 'var(--text-primary)',
-            cursor: 'pointer',
-            fontFamily: 'inherit',
-            transition: 'all 0.2s ease',
-            boxShadow: 'var(--shadow-card)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6
-          }}
-        >
-          <ClipboardFilledIcon size={16} />
-          <span>Templates</span>
-        </button>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <button
+            onClick={() => setBuddyModeActive(!buddyModeActive)}
+            style={{
+              height: 38,
+              padding: '0 12px',
+              borderRadius: 9999,
+              border: 'none',
+              background: buddyModeActive ? '#06b6d4' : 'var(--input-bg)',
+              color: buddyModeActive ? 'white' : 'var(--text-primary)',
+              fontWeight: 700,
+              fontSize: 12,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              transition: 'all 0.2s ease',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4
+            }}
+          >
+            <span>👥 Buddy</span>
+          </button>
+          
+          <button
+            onClick={() => {
+              setShowTemplates(true);
+              loadTemplatesList();
+            }}
+            style={{
+              height: 38,
+              padding: '0 12px',
+              borderRadius: 9999,
+              border: '1px solid var(--border-light)',
+              background: 'var(--card-bg)',
+              fontWeight: 700,
+              fontSize: 12,
+              color: 'var(--text-primary)',
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              transition: 'all 0.2s ease',
+              boxShadow: 'var(--shadow-card)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4
+            }}
+          >
+            <ClipboardFilledIcon size={14} />
+            <span>Templates</span>
+          </button>
+        </div>
       </div>
+
+      {buddyModeActive && (
+        <div style={{
+          background: 'rgba(6, 182, 212, 0.1)',
+          color: '#0891b2',
+          padding: '8px 16px',
+          borderRadius: 9999,
+          fontSize: 12,
+          fontWeight: 700,
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 6,
+          marginBottom: 16,
+        }}>
+          <span>👥 Buddy Mode Active</span>
+          {buddyName && <span style={{ opacity: 0.7 }}>· Training with {buddyName}</span>}
+        </div>
+      )}
+
+      {buddyModeActive && !buddyName ? (
+        <div className="card" style={{
+          textAlign: 'center',
+          padding: '40px 24px',
+          marginTop: 20,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 16
+        }}>
+          <div style={{ fontSize: 48 }}>👥</div>
+          <h3 style={{ fontSize: 18, fontWeight: 800, margin: 0 }}>Add your buddy's name first</h3>
+          <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>
+            To use Buddy Mode, please enter your workout buddy's name in Settings first.
+          </p>
+          <button
+            onClick={() => router.push('/app/settings')}
+            style={{
+              padding: '12px 24px',
+              borderRadius: 9999,
+              border: 'none',
+              background: 'var(--lime)',
+              color: 'var(--text-primary)',
+              fontWeight: 700,
+              fontSize: 14,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              boxShadow: 'var(--shadow-button)'
+            }}
+          >
+            Go to Settings
+          </button>
+        </div>
+      ) : (
+        <>
 
       {/* ─── Workout Name ─── */}
       <div style={{ marginBottom: 24 }}>
@@ -1006,86 +1315,266 @@ function LogWorkoutContent() {
                       </button>
                     </div>
 
-                    {/* Progressive Overload Hint */}
-                    {history && history.lastSets > 0 ? (
-                      <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 12, fontWeight: 500 }}>
-                        Last: {history.lastWeight}{weightUnit} × {history.lastReps} — Target: {history.lastWeight + 2.5}{weightUnit} × {history.lastReps}
-                      </p>
-                    ) : (
-                      <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 12, fontWeight: 500, fontStyle: 'italic' }}>
-                        First time doing this exercise. Set your baseline!
-                      </p>
-                    )}
+                    {buddyModeActive ? (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 12, position: 'relative' }}>
+                        {/* Divider */}
+                        <div style={{ position: 'absolute', top: 0, bottom: 0, left: '50%', width: 1, background: '#E2E8F0', transform: 'translateX(-50%)' }} />
 
-                    {/* Logged Set Pills Scroll Row */}
-                    {ex.sets.length > 0 && (
-                      <div className="scroll-row" style={{ gap: 8, marginBottom: 16, paddingBottom: 4 }}>
-                        {ex.sets.map((set, setIdx) => {
-                          const isSetPillCompleted = set.completed;
-                          return (
-                            <div
-                              key={setIdx}
-                              onPointerDown={(e) => handleSetPillPointerDown(e, ex.exerciseId, setIdx)}
-                              onPointerUp={handleSetPillPointerUp}
-                              onPointerLeave={handleSetPillPointerUp}
+                        {/* LEFT Column — You */}
+                        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                          <p style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--lime)' }} />
+                            You
+                          </p>
+
+                          {history && history.lastSets > 0 ? (
+                            <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 8, fontWeight: 500 }}>
+                              Last: {history.lastWeight}{weightUnit}×{history.lastReps}
+                            </p>
+                          ) : (
+                            <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 8, fontWeight: 500, fontStyle: 'italic' }}>
+                              First time
+                            </p>
+                          )}
+
+                          <div className="scroll-row" style={{ gap: 6, marginBottom: 12, paddingBottom: 4 }}>
+                            {ex.sets.map((set, setIdx) => {
+                              const isSetPillCompleted = set.completed;
+                              return (
+                                <div
+                                  key={setIdx}
+                                  onPointerDown={(e) => handleSetPillPointerDown(e, ex.exerciseId, setIdx, false)}
+                                  onPointerUp={handleSetPillPointerUp}
+                                  onPointerLeave={handleSetPillPointerUp}
+                                  style={{
+                                    flexShrink: 0,
+                                    padding: '6px 10px',
+                                    borderRadius: 8,
+                                    background: isSetPillCompleted ? 'var(--lime)' : 'var(--input-bg)',
+                                    border: '1px solid ' + (isSetPillCompleted ? 'transparent' : 'var(--border-light)'),
+                                    color: 'var(--text-primary)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 4,
+                                    cursor: 'pointer',
+                                    userSelect: 'none',
+                                    fontWeight: 700,
+                                    fontSize: 11,
+                                  }}
+                                  onClick={() => {
+                                    setLogSheet({
+                                      exerciseId: ex.exerciseId,
+                                      setIndex: setIdx,
+                                      weight: set.weight,
+                                      reps: set.reps,
+                                      isBuddy: false
+                                    });
+                                  }}
+                                >
+                                  <span>{set.weight > 0 ? `${set.weight}${weightUnit}` : '-'}×{set.reps}</span>
+                                  {isSetPillCompleted && <span style={{ fontSize: 9 }}>✓</span>}
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            <button
+                              onClick={() => handleOpenLogSheet(ex.exerciseId, false)}
                               style={{
-                                flexShrink: 0,
-                                padding: '8px 14px',
-                                borderRadius: 12,
-                                background: isSetPillCompleted ? 'var(--lime)' : 'var(--input-bg)',
-                                border: '1px solid ' + (isSetPillCompleted ? 'transparent' : 'var(--border-light)'),
-                                color: 'var(--text-primary)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 6,
-                                cursor: 'pointer',
-                                userSelect: 'none',
-                                fontWeight: 700,
-                                fontSize: 12,
-                              }}
-                              onClick={() => {
-                                setLogSheet({
-                                  exerciseId: ex.exerciseId,
-                                  setIndex: setIdx,
-                                  weight: set.weight,
-                                  reps: set.reps,
-                                });
+                                height: 38, borderRadius: 9999, border: 'none',
+                                background: 'var(--lime)', color: 'var(--text-primary)', fontWeight: 800,
+                                cursor: 'pointer', fontSize: 12, fontFamily: 'inherit',
+                                boxShadow: '0 2px 6px rgba(200,241,53,0.15)',
                               }}
                             >
-                              <span>S{set.setNumber}: {set.weight > 0 ? `${set.weight}${weightUnit}` : '-'} × {set.reps}</span>
-                              {isSetPillCompleted && <span style={{ fontSize: 10 }}>✓</span>}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
+                              + Log Set
+                            </button>
+                            {ex.sets.some(s => s.completed) && (
+                              <button
+                                onClick={() => repeatLastSet(ex.exerciseId, false)}
+                                style={{
+                                  height: 38, borderRadius: 9999, border: '1px solid var(--lime)',
+                                  background: 'transparent', color: 'var(--text-primary)', fontWeight: 700,
+                                  cursor: 'pointer', fontSize: 12, fontFamily: 'inherit',
+                                }}
+                              >
+                                Repeat Last
+                              </button>
+                            )}
+                          </div>
+                        </div>
 
-                    {/* Card Actions */}
-                    <div style={{ display: 'flex', gap: 10 }}>
-                      {hasLoggedSet && (
-                        <button
-                          onClick={() => repeatLastSet(ex.exerciseId)}
-                          style={{
-                            flex: 1, height: 48, borderRadius: 9999, border: '1px solid var(--lime)',
-                            background: 'transparent', color: 'var(--text-primary)', fontWeight: 700,
-                            cursor: 'pointer', fontSize: 14, fontFamily: 'inherit',
-                          }}
-                        >
-                          Repeat Last Set
-                        </button>
-                      )}
-                      <button
-                        onClick={() => handleOpenLogSheet(ex.exerciseId)}
-                        style={{
-                          flex: 2, height: 48, borderRadius: 9999, border: 'none',
-                          background: 'var(--lime)', color: 'var(--text-primary)', fontWeight: 800,
-                          cursor: 'pointer', fontSize: 14, fontFamily: 'inherit',
-                          boxShadow: '0 4px 12px rgba(200,241,53,0.15)',
-                        }}
-                      >
-                        + Log Set
-                      </button>
-                    </div>
+                        {/* RIGHT Column — Buddy */}
+                        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                          <p style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#06B6D4' }} />
+                            {buddyName || 'Buddy'}
+                          </p>
+
+                          {history && history.lastSets > 0 ? (
+                            <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 8, fontWeight: 500 }}>
+                              Last: {history.lastWeight}{weightUnit}×{history.lastReps}
+                            </p>
+                          ) : (
+                            <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 8, fontWeight: 500, fontStyle: 'italic' }}>
+                              First time
+                            </p>
+                          )}
+
+                          <div className="scroll-row" style={{ gap: 6, marginBottom: 12, paddingBottom: 4 }}>
+                            {(ex.buddySets || []).map((set, setIdx) => {
+                              const isSetPillCompleted = set.completed;
+                              return (
+                                <div
+                                  key={setIdx}
+                                  onPointerDown={(e) => handleSetPillPointerDown(e, ex.exerciseId, setIdx, true)}
+                                  onPointerUp={handleSetPillPointerUp}
+                                  onPointerLeave={handleSetPillPointerUp}
+                                  style={{
+                                    flexShrink: 0,
+                                    padding: '6px 10px',
+                                    borderRadius: 8,
+                                    background: isSetPillCompleted ? '#06b6d4' : 'var(--input-bg)',
+                                    border: '1px solid ' + (isSetPillCompleted ? 'transparent' : 'var(--border-light)'),
+                                    color: isSetPillCompleted ? 'white' : 'var(--text-primary)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 4,
+                                    cursor: 'pointer',
+                                    userSelect: 'none',
+                                    fontWeight: 700,
+                                    fontSize: 11,
+                                  }}
+                                  onClick={() => {
+                                    setLogSheet({
+                                      exerciseId: ex.exerciseId,
+                                      setIndex: setIdx,
+                                      weight: set.weight,
+                                      reps: set.reps,
+                                      isBuddy: true
+                                    });
+                                  }}
+                                >
+                                  <span>{set.weight > 0 ? `${set.weight}${weightUnit}` : '-'}×{set.reps}</span>
+                                  {isSetPillCompleted && <span style={{ fontSize: 9 }}>✓</span>}
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            <button
+                              onClick={() => handleOpenLogSheet(ex.exerciseId, true)}
+                              style={{
+                                height: 38, borderRadius: 9999, border: 'none',
+                                background: '#06b6d4', color: 'white', fontWeight: 800,
+                                cursor: 'pointer', fontSize: 12, fontFamily: 'inherit',
+                                boxShadow: '0 2px 6px rgba(6,182,212,0.15)',
+                              }}
+                            >
+                              + Log Set
+                            </button>
+                            {(ex.buddySets || []).some(s => s.completed) && (
+                              <button
+                                onClick={() => repeatLastSet(ex.exerciseId, true)}
+                                style={{
+                                  height: 38, borderRadius: 9999, border: '1px solid #06b6d4',
+                                  background: 'transparent', color: 'var(--text-primary)', fontWeight: 700,
+                                  cursor: 'pointer', fontSize: 12, fontFamily: 'inherit',
+                                }}
+                              >
+                                Repeat Last
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        {/* Progressive Overload Hint */}
+                        {history && history.lastSets > 0 ? (
+                          <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 12, fontWeight: 500 }}>
+                            Last: {history.lastWeight}{weightUnit} × {history.lastReps} — Target: {history.lastWeight + 2.5}{weightUnit} × {history.lastReps}
+                          </p>
+                        ) : (
+                          <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 12, fontWeight: 500, fontStyle: 'italic' }}>
+                            First time doing this exercise. Set your baseline!
+                          </p>
+                        )}
+
+                        {/* Logged Set Pills Scroll Row */}
+                        {ex.sets.length > 0 && (
+                          <div className="scroll-row" style={{ gap: 8, marginBottom: 16, paddingBottom: 4 }}>
+                            {ex.sets.map((set, setIdx) => {
+                              const isSetPillCompleted = set.completed;
+                              return (
+                                <div
+                                  key={setIdx}
+                                  onPointerDown={(e) => handleSetPillPointerDown(e, ex.exerciseId, setIdx, false)}
+                                  onPointerUp={handleSetPillPointerUp}
+                                  onPointerLeave={handleSetPillPointerUp}
+                                  style={{
+                                    flexShrink: 0,
+                                    padding: '8px 14px',
+                                    borderRadius: 12,
+                                    background: isSetPillCompleted ? 'var(--lime)' : 'var(--input-bg)',
+                                    border: '1px solid ' + (isSetPillCompleted ? 'transparent' : 'var(--border-light)'),
+                                    color: 'var(--text-primary)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 6,
+                                    cursor: 'pointer',
+                                    userSelect: 'none',
+                                    fontWeight: 700,
+                                    fontSize: 12,
+                                  }}
+                                  onClick={() => {
+                                    setLogSheet({
+                                      exerciseId: ex.exerciseId,
+                                      setIndex: setIdx,
+                                      weight: set.weight,
+                                      reps: set.reps,
+                                      isBuddy: false
+                                    });
+                                  }}
+                                >
+                                  <span>S{set.setNumber}: {set.weight > 0 ? `${set.weight}${weightUnit}` : '-'} × {set.reps}</span>
+                                  {isSetPillCompleted && <span style={{ fontSize: 10 }}>✓</span>}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {/* Card Actions */}
+                        <div style={{ display: 'flex', gap: 10 }}>
+                          {hasLoggedSet && (
+                            <button
+                              onClick={() => repeatLastSet(ex.exerciseId, false)}
+                              style={{
+                                flex: 1, height: 48, borderRadius: 9999, border: '1px solid var(--lime)',
+                                background: 'transparent', color: 'var(--text-primary)', fontWeight: 700,
+                                cursor: 'pointer', fontSize: 14, fontFamily: 'inherit',
+                              }}
+                            >
+                              Repeat Last Set
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleOpenLogSheet(ex.exerciseId, false)}
+                            style={{
+                              flex: 2, height: 48, borderRadius: 9999, border: 'none',
+                              background: 'var(--lime)', color: 'var(--text-primary)', fontWeight: 800,
+                              cursor: 'pointer', fontSize: 14, fontFamily: 'inherit',
+                              boxShadow: '0 4px 12px rgba(200,241,53,0.15)',
+                            }}
+                          >
+                            + Log Set
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </div>
                 );
               } else {
@@ -1125,169 +1614,354 @@ function LogWorkoutContent() {
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                      {/* Exercise A */}
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                          <span style={{ fontWeight: 800, fontSize: 15, color: 'var(--text-primary)' }}>{exA.exerciseName}</span>
-                          <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 9999, background: `${exA.color}15`, color: exA.color }}>{exA.category}</span>
-                        </div>
+                    {buddyModeActive ? (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 12, position: 'relative' }}>
+                        {/* Divider */}
+                        <div style={{ position: 'absolute', top: 0, bottom: 0, left: '50%', width: 1, background: '#E2E8F0', transform: 'translateX(-50%)' }} />
 
-                        {historyA && historyA.lastSets > 0 ? (
-                          <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 8, fontWeight: 500 }}>
-                            Last: {historyA.lastWeight}{weightUnit} × {historyA.lastReps} · Target: {historyA.lastWeight + 2.5}{weightUnit} × {historyA.lastReps}
+                        {/* LEFT Column — You */}
+                        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, gap: 12 }}>
+                          <p style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--lime)' }} />
+                            You
                           </p>
-                        ) : (
-                          <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 8, fontStyle: 'italic' }}>Set baseline</p>
-                        )}
 
-                        {/* Logged pills for A */}
-                        {exA.sets.length > 0 && (
-                          <div className="scroll-row" style={{ gap: 6, marginBottom: 4, paddingBottom: 2 }}>
-                            {exA.sets.map((set, setIdx) => {
-                              const isCompleted = set.completed;
-                              return (
+                          {/* Exercise A */}
+                          <div>
+                            <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-primary)', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{exA.exerciseName}</div>
+                            <div className="scroll-row" style={{ gap: 4, marginBottom: 6, paddingBottom: 2 }}>
+                              {exA.sets.map((set, setIdx) => (
                                 <div
                                   key={setIdx}
-                                  onPointerDown={(e) => handleSetPillPointerDown(e, exA.exerciseId, setIdx)}
+                                  onPointerDown={(e) => handleSetPillPointerDown(e, exA.exerciseId, setIdx, false)}
                                   onPointerUp={handleSetPillPointerUp}
                                   onPointerLeave={handleSetPillPointerUp}
                                   style={{
-                                    flexShrink: 0, padding: '6px 12px', borderRadius: 10,
-                                    background: isCompleted ? '#22d3ee' : 'var(--input-bg)',
-                                    border: '1px solid ' + (isCompleted ? 'transparent' : 'var(--border-light)'),
-                                    color: isCompleted ? 'white' : 'var(--text-primary)',
-                                    display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer',
-                                    fontWeight: 700, fontSize: 11,
+                                    flexShrink: 0, padding: '4px 8px', borderRadius: 6,
+                                    background: set.completed ? '#22d3ee' : 'var(--input-bg)',
+                                    color: set.completed ? 'white' : 'var(--text-primary)',
+                                    fontWeight: 700, fontSize: 10, cursor: 'pointer',
                                   }}
-                                  onClick={() => {
-                                    setLogSheet({
-                                      exerciseId: exA.exerciseId,
-                                      setIndex: setIdx,
-                                      weight: set.weight,
-                                      reps: set.reps,
-                                    });
-                                  }}
+                                  onClick={() => setLogSheet({ exerciseId: exA.exerciseId, setIndex: setIdx, weight: set.weight, reps: set.reps, isBuddy: false })}
                                 >
-                                  <span>S{set.setNumber}: {set.weight > 0 ? `${set.weight}${weightUnit}` : '-'} × {set.reps}</span>
-                                  {isCompleted && <span>✓</span>}
+                                  {set.weight > 0 ? `${set.weight}${weightUnit}` : '-'}×{set.reps}
                                 </div>
-                              );
-                            })}
+                              ))}
+                            </div>
+                            <div style={{ display: 'flex', gap: 4 }}>
+                              <button
+                                onClick={() => handleOpenLogSheet(exA.exerciseId, false)}
+                                style={{ flex: 1, height: 32, borderRadius: 8, border: 'none', background: '#22d3ee', color: 'white', fontWeight: 800, fontSize: 10, cursor: 'pointer' }}
+                              >
+                                + Log A
+                              </button>
+                              {hasLoggedSetA && (
+                                <button
+                                  onClick={() => repeatLastSet(exA.exerciseId, false)}
+                                  style={{ height: 32, padding: '0 6px', borderRadius: 8, border: '1px solid #22d3ee', background: 'transparent', color: '#0891b2', fontWeight: 700, fontSize: 10, cursor: 'pointer' }}
+                                >
+                                  Rep
+                                </button>
+                              )}
+                            </div>
                           </div>
-                        )}
-                      </div>
 
-                      {/* Divider line */}
-                      <div style={{ height: 1, background: 'var(--border-light)', margin: '4px 0' }} />
-
-                      {/* Exercise B */}
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                          <span style={{ fontWeight: 800, fontSize: 15, color: 'var(--text-primary)' }}>{exB.exerciseName}</span>
-                          <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 9999, background: `${exB.color}15`, color: exB.color }}>{exB.category}</span>
-                        </div>
-
-                        {historyB && historyB.lastSets > 0 ? (
-                          <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 8, fontWeight: 500 }}>
-                            Last: {historyB.lastWeight}{weightUnit} × {historyB.lastReps} · Target: {historyB.lastWeight + 2.5}{weightUnit} × {historyB.lastReps}
-                          </p>
-                        ) : (
-                          <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 8, fontStyle: 'italic' }}>Set baseline</p>
-                        )}
-
-                        {/* Logged pills for B */}
-                        {exB.sets.length > 0 && (
-                          <div className="scroll-row" style={{ gap: 6, marginBottom: 4, paddingBottom: 2 }}>
-                            {exB.sets.map((set, setIdx) => {
-                              const isCompleted = set.completed;
-                              return (
+                          {/* Exercise B */}
+                          <div>
+                            <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-primary)', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{exB.exerciseName}</div>
+                            <div className="scroll-row" style={{ gap: 4, marginBottom: 6, paddingBottom: 2 }}>
+                              {exB.sets.map((set, setIdx) => (
                                 <div
                                   key={setIdx}
-                                  onPointerDown={(e) => handleSetPillPointerDown(e, exB.exerciseId, setIdx)}
+                                  onPointerDown={(e) => handleSetPillPointerDown(e, exB.exerciseId, setIdx, false)}
                                   onPointerUp={handleSetPillPointerUp}
                                   onPointerLeave={handleSetPillPointerUp}
                                   style={{
-                                    flexShrink: 0, padding: '6px 12px', borderRadius: 10,
-                                    background: isCompleted ? '#22d3ee' : 'var(--input-bg)',
-                                    border: '1px solid ' + (isCompleted ? 'transparent' : 'var(--border-light)'),
-                                    color: isCompleted ? 'white' : 'var(--text-primary)',
-                                    display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer',
-                                    fontWeight: 700, fontSize: 11,
+                                    flexShrink: 0, padding: '4px 8px', borderRadius: 6,
+                                    background: set.completed ? '#22d3ee' : 'var(--input-bg)',
+                                    color: set.completed ? 'white' : 'var(--text-primary)',
+                                    fontWeight: 700, fontSize: 10, cursor: 'pointer',
                                   }}
-                                  onClick={() => {
-                                    setLogSheet({
-                                      exerciseId: exB.exerciseId,
-                                      setIndex: setIdx,
-                                      weight: set.weight,
-                                      reps: set.reps,
-                                    });
-                                  }}
+                                  onClick={() => setLogSheet({ exerciseId: exB.exerciseId, setIndex: setIdx, weight: set.weight, reps: set.reps, isBuddy: false })}
                                 >
-                                  <span>S{set.setNumber}: {set.weight > 0 ? `${set.weight}${weightUnit}` : '-'} × {set.reps}</span>
-                                  {isCompleted && <span>✓</span>}
+                                  {set.weight > 0 ? `${set.weight}${weightUnit}` : '-'}×{set.reps}
                                 </div>
-                              );
-                            })}
+                              ))}
+                            </div>
+                            <div style={{ display: 'flex', gap: 4 }}>
+                              <button
+                                onClick={() => handleOpenLogSheet(exB.exerciseId, false)}
+                                style={{ flex: 1, height: 32, borderRadius: 8, border: 'none', background: '#22d3ee', color: 'white', fontWeight: 800, fontSize: 10, cursor: 'pointer' }}
+                              >
+                                + Log B
+                              </button>
+                              {hasLoggedSetB && (
+                                <button
+                                  onClick={() => repeatLastSet(exB.exerciseId, false)}
+                                  style={{ height: 32, padding: '0 6px', borderRadius: 8, border: '1px solid #22d3ee', background: 'transparent', color: '#0891b2', fontWeight: 700, fontSize: 10, cursor: 'pointer' }}
+                                >
+                                  Rep
+                                </button>
+                              )}
+                            </div>
                           </div>
-                        )}
-                      </div>
+                        </div>
 
-                      {/* Unified actions grid */}
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 8 }}>
-                        {/* Actions for A */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                          <button
-                            onClick={() => handleOpenLogSheet(exA.exerciseId)}
-                            style={{
-                              height: 40, borderRadius: 14, border: 'none',
-                              background: '#22d3ee', color: 'white', fontWeight: 800,
-                              cursor: 'pointer', fontSize: 12, fontFamily: 'inherit',
-                            }}
-                          >
-                            + Log Set A
-                          </button>
-                          {hasLoggedSetA && (
-                            <button
-                              onClick={() => repeatLastSet(exA.exerciseId)}
-                              style={{
-                                height: 32, borderRadius: 10, border: '1px solid #22d3ee',
-                                background: 'transparent', color: '#0891b2', fontWeight: 700,
-                                cursor: 'pointer', fontSize: 11, fontFamily: 'inherit',
-                              }}
-                            >
-                              Repeat Set A
-                            </button>
+                        {/* RIGHT Column — Buddy */}
+                        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, gap: 12 }}>
+                          <p style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#06B6D4' }} />
+                            {buddyName || 'Buddy'}
+                          </p>
+
+                          {/* Exercise A */}
+                          <div>
+                            <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-primary)', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{exA.exerciseName}</div>
+                            <div className="scroll-row" style={{ gap: 4, marginBottom: 6, paddingBottom: 2 }}>
+                              {(exA.buddySets || []).map((set, setIdx) => (
+                                <div
+                                  key={setIdx}
+                                  onPointerDown={(e) => handleSetPillPointerDown(e, exA.exerciseId, setIdx, true)}
+                                  onPointerUp={handleSetPillPointerUp}
+                                  onPointerLeave={handleSetPillPointerUp}
+                                  style={{
+                                    flexShrink: 0, padding: '4px 8px', borderRadius: 6,
+                                    background: set.completed ? '#06b6d4' : 'var(--input-bg)',
+                                    color: set.completed ? 'white' : 'var(--text-primary)',
+                                    fontWeight: 700, fontSize: 10, cursor: 'pointer',
+                                  }}
+                                  onClick={() => setLogSheet({ exerciseId: exA.exerciseId, setIndex: setIdx, weight: set.weight, reps: set.reps, isBuddy: true })}
+                                >
+                                  {set.weight > 0 ? `${set.weight}${weightUnit}` : '-'}×{set.reps}
+                                </div>
+                              ))}
+                            </div>
+                            <div style={{ display: 'flex', gap: 4 }}>
+                              <button
+                                onClick={() => handleOpenLogSheet(exA.exerciseId, true)}
+                                style={{ flex: 1, height: 32, borderRadius: 8, border: 'none', background: '#06b6d4', color: 'white', fontWeight: 800, fontSize: 10, cursor: 'pointer' }}
+                              >
+                                + Log A
+                              </button>
+                              {(exA.buddySets || []).some(s => s.completed) && (
+                                <button
+                                  onClick={() => repeatLastSet(exA.exerciseId, true)}
+                                  style={{ height: 32, padding: '0 6px', borderRadius: 8, border: '1px solid #06b6d4', background: 'transparent', color: '#0891b2', fontWeight: 700, fontSize: 10, cursor: 'pointer' }}
+                                >
+                                  Rep
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Exercise B */}
+                          <div>
+                            <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-primary)', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{exB.exerciseName}</div>
+                            <div className="scroll-row" style={{ gap: 4, marginBottom: 6, paddingBottom: 2 }}>
+                              {(exB.buddySets || []).map((set, setIdx) => (
+                                <div
+                                  key={setIdx}
+                                  onPointerDown={(e) => handleSetPillPointerDown(e, exB.exerciseId, setIdx, true)}
+                                  onPointerUp={handleSetPillPointerUp}
+                                  onPointerLeave={handleSetPillPointerUp}
+                                  style={{
+                                    flexShrink: 0, padding: '4px 8px', borderRadius: 6,
+                                    background: set.completed ? '#06b6d4' : 'var(--input-bg)',
+                                    color: set.completed ? 'white' : 'var(--text-primary)',
+                                    fontWeight: 700, fontSize: 10, cursor: 'pointer',
+                                  }}
+                                  onClick={() => setLogSheet({ exerciseId: exB.exerciseId, setIndex: setIdx, weight: set.weight, reps: set.reps, isBuddy: true })}
+                                >
+                                  {set.weight > 0 ? `${set.weight}${weightUnit}` : '-'}×{set.reps}
+                                </div>
+                              ))}
+                            </div>
+                            <div style={{ display: 'flex', gap: 4 }}>
+                              <button
+                                onClick={() => handleOpenLogSheet(exB.exerciseId, true)}
+                                style={{ flex: 1, height: 32, borderRadius: 8, border: 'none', background: '#06b6d4', color: 'white', fontWeight: 800, fontSize: 10, cursor: 'pointer' }}
+                              >
+                                + Log B
+                              </button>
+                              {(exB.buddySets || []).some(s => s.completed) && (
+                                <button
+                                  onClick={() => repeatLastSet(exB.exerciseId, true)}
+                                  style={{ height: 32, padding: '0 6px', borderRadius: 8, border: '1px solid #06b6d4', background: 'transparent', color: '#0891b2', fontWeight: 700, fontSize: 10, cursor: 'pointer' }}
+                                >
+                                  Rep
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                        {/* Exercise A */}
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                            <span style={{ fontWeight: 800, fontSize: 15, color: 'var(--text-primary)' }}>{exA.exerciseName}</span>
+                            <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 9999, background: `${exA.color}15`, color: exA.color }}>{exA.category}</span>
+                          </div>
+
+                          {historyA && historyA.lastSets > 0 ? (
+                            <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 8, fontWeight: 500 }}>
+                              Last: {historyA.lastWeight}{weightUnit} × {historyA.lastReps} · Target: {historyA.lastWeight + 2.5}{weightUnit} × {historyA.lastReps}
+                            </p>
+                          ) : (
+                            <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 8, fontStyle: 'italic' }}>Set baseline</p>
+                          )}
+
+                          {/* Logged pills for A */}
+                          {exA.sets.length > 0 && (
+                            <div className="scroll-row" style={{ gap: 6, marginBottom: 4, paddingBottom: 2 }}>
+                              {exA.sets.map((set, setIdx) => {
+                                const isCompleted = set.completed;
+                                return (
+                                  <div
+                                    key={setIdx}
+                                    onPointerDown={(e) => handleSetPillPointerDown(e, exA.exerciseId, setIdx, false)}
+                                    onPointerUp={handleSetPillPointerUp}
+                                    onPointerLeave={handleSetPillPointerUp}
+                                    style={{
+                                      flexShrink: 0, padding: '6px 12px', borderRadius: 10,
+                                      background: isCompleted ? '#22d3ee' : 'var(--input-bg)',
+                                      border: '1px solid ' + (isCompleted ? 'transparent' : 'var(--border-light)'),
+                                      color: isCompleted ? 'white' : 'var(--text-primary)',
+                                      display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer',
+                                      fontWeight: 700, fontSize: 11,
+                                    }}
+                                    onClick={() => {
+                                      setLogSheet({
+                                        exerciseId: exA.exerciseId,
+                                        setIndex: setIdx,
+                                        weight: set.weight,
+                                        reps: set.reps,
+                                        isBuddy: false
+                                      });
+                                    }}
+                                  >
+                                    <span>S{set.setNumber}: {set.weight > 0 ? `${set.weight}${weightUnit}` : '-'} × {set.reps}</span>
+                                    {isCompleted && <span>✓</span>}
+                                  </div>
+                                );
+                              })}
+                            </div>
                           )}
                         </div>
 
-                        {/* Actions for B */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                          <button
-                            onClick={() => handleOpenLogSheet(exB.exerciseId)}
-                            style={{
-                              height: 40, borderRadius: 14, border: 'none',
-                              background: '#22d3ee', color: 'white', fontWeight: 800,
-                              cursor: 'pointer', fontSize: 12, fontFamily: 'inherit',
-                            }}
-                          >
-                            + Log Set B
-                          </button>
-                          {hasLoggedSetB && (
-                            <button
-                              onClick={() => repeatLastSet(exB.exerciseId)}
-                              style={{
-                                height: 32, borderRadius: 10, border: '1px solid #22d3ee',
-                                background: 'transparent', color: '#0891b2', fontWeight: 700,
-                                cursor: 'pointer', fontSize: 11, fontFamily: 'inherit',
-                              }}
-                            >
-                              Repeat Set B
-                            </button>
+                        {/* Divider line */}
+                        <div style={{ height: 1, background: 'var(--border-light)', margin: '4px 0' }} />
+
+                        {/* Exercise B */}
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                            <span style={{ fontWeight: 800, fontSize: 15, color: 'var(--text-primary)' }}>{exB.exerciseName}</span>
+                            <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 9999, background: `${exB.color}15`, color: exB.color }}>{exB.category}</span>
+                          </div>
+
+                          {historyB && historyB.lastSets > 0 ? (
+                            <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 8, fontWeight: 500 }}>
+                              Last: {historyB.lastWeight}{weightUnit} × {historyB.lastReps} · Target: {historyB.lastWeight + 2.5}{weightUnit} × {historyB.lastReps}
+                            </p>
+                          ) : (
+                            <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 8, fontStyle: 'italic' }}>Set baseline</p>
+                          )}
+
+                          {/* Logged pills for B */}
+                          {exB.sets.length > 0 && (
+                            <div className="scroll-row" style={{ gap: 6, marginBottom: 4, paddingBottom: 2 }}>
+                              {exB.sets.map((set, setIdx) => {
+                                const isCompleted = set.completed;
+                                return (
+                                  <div
+                                    key={setIdx}
+                                    onPointerDown={(e) => handleSetPillPointerDown(e, exB.exerciseId, setIdx, false)}
+                                    onPointerUp={handleSetPillPointerUp}
+                                    onPointerLeave={handleSetPillPointerUp}
+                                    style={{
+                                      flexShrink: 0, padding: '6px 12px', borderRadius: 10,
+                                      background: isCompleted ? '#22d3ee' : 'var(--input-bg)',
+                                      border: '1px solid ' + (isCompleted ? 'transparent' : 'var(--border-light)'),
+                                      color: isCompleted ? 'white' : 'var(--text-primary)',
+                                      display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer',
+                                      fontWeight: 700, fontSize: 11,
+                                    }}
+                                    onClick={() => {
+                                      setLogSheet({
+                                        exerciseId: exB.exerciseId,
+                                        setIndex: setIdx,
+                                        weight: set.weight,
+                                        reps: set.reps,
+                                        isBuddy: false
+                                      });
+                                    }}
+                                  >
+                                    <span>S{set.setNumber}: {set.weight > 0 ? `${set.weight}${weightUnit}` : '-'} × {set.reps}</span>
+                                    {isCompleted && <span>✓</span>}
+                                  </div>
+                                );
+                              })}
+                            </div>
                           )}
                         </div>
+
+                        {/* Unified actions grid */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 8 }}>
+                          {/* Actions for A */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            <button
+                              onClick={() => handleOpenLogSheet(exA.exerciseId, false)}
+                              style={{
+                                height: 40, borderRadius: 14, border: 'none',
+                                background: '#22d3ee', color: 'white', fontWeight: 800,
+                                cursor: 'pointer', fontSize: 12, fontFamily: 'inherit',
+                              }}
+                            >
+                              + Log Set A
+                            </button>
+                            {hasLoggedSetA && (
+                              <button
+                                onClick={() => repeatLastSet(exA.exerciseId, false)}
+                                style={{
+                                  height: 32, borderRadius: 10, border: '1px solid #22d3ee',
+                                  background: 'transparent', color: '#0891b2', fontWeight: 700,
+                                  cursor: 'pointer', fontSize: 11, fontFamily: 'inherit',
+                                }}
+                              >
+                                Repeat Set A
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Actions for B */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            <button
+                              onClick={() => handleOpenLogSheet(exB.exerciseId, false)}
+                              style={{
+                                height: 40, borderRadius: 14, border: 'none',
+                                background: '#22d3ee', color: 'white', fontWeight: 800,
+                                cursor: 'pointer', fontSize: 12, fontFamily: 'inherit',
+                              }}
+                            >
+                              + Log Set B
+                            </button>
+                            {hasLoggedSetB && (
+                              <button
+                                onClick={() => repeatLastSet(exB.exerciseId, false)}
+                                style={{
+                                  height: 32, borderRadius: 10, border: '1px solid #22d3ee',
+                                  background: 'transparent', color: '#0891b2', fontWeight: 700,
+                                  cursor: 'pointer', fontSize: 11, fontFamily: 'inherit',
+                                }}
+                              >
+                                Repeat Set B
+                              </button>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                 );
               }
@@ -1486,6 +2160,7 @@ function LogWorkoutContent() {
           {saving ? 'Saving…' : 'Finish Workout'}
         </button>
       </div>
+    </>)}
 
       {/* ─── PR Celebration Overlay ─── */}
       {celebration.show && (
@@ -1573,6 +2248,121 @@ function LogWorkoutContent() {
         </div>
       )}
 
+      {/* ─── Intensity Rating Overlay ─── */}
+      {showIntensityRatingOverlay && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'white',
+            zIndex: 10000,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 24,
+            textAlign: 'center',
+            animation: 'slideUp 0.3s ease-out forwards',
+          }}
+        >
+          <style>{`
+            @keyframes slideUp {
+              from { transform: translateY(100%); }
+              to { transform: translateY(0); }
+            }
+            @keyframes pulseScale {
+              0% { transform: scale(1); }
+              50% { transform: scale(1.2); }
+              100% { transform: scale(1.1); }
+            }
+          `}</style>
+          
+          <h2 style={{ fontSize: 24, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 8 }}>
+            How was today's session?
+          </h2>
+          <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 40 }}>
+            Rate the intensity of your workout
+          </p>
+          
+          <div style={{ display: 'flex', gap: 16, marginBottom: 50, justifyContent: 'center' }}>
+            {[
+              { rating: 1, emoji: '😴', label: 'Easy' },
+              { rating: 2, emoji: '😐', label: 'OK' },
+              { rating: 3, emoji: '💪', label: 'Good' },
+              { rating: 4, emoji: '🔥', label: 'Hard' },
+              { rating: 5, emoji: '⚡', label: 'Beast' },
+            ].map(item => {
+              const isSelected = intensityRating === item.rating;
+              return (
+                <button
+                  key={item.rating}
+                  onClick={() => setIntensityRating(item.rating)}
+                  style={{
+                    border: 'none',
+                    background: isSelected ? 'var(--lime)' : 'transparent',
+                    width: 64,
+                    height: 64,
+                    borderRadius: '50%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 32,
+                    cursor: 'pointer',
+                    transform: isSelected ? 'scale(1.1)' : 'scale(1)',
+                    animation: isSelected ? 'pulseScale 0.3s ease-out' : 'none',
+                    transition: 'all 0.2s ease',
+                    boxShadow: isSelected ? '0 8px 16px rgba(200, 241, 53, 0.4)' : 'none',
+                  }}
+                  title={item.label}
+                >
+                  {item.emoji}
+                </button>
+              );
+            })}
+          </div>
+          
+          <div style={{ width: '100%', maxWidth: 320, display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <button
+              onClick={() => handleFinishIntensityRating(intensityRating)}
+              disabled={intensityRating === null}
+              style={{
+                width: '100%',
+                padding: '16px',
+                borderRadius: 9999,
+                border: 'none',
+                background: intensityRating !== null ? 'var(--lime)' : 'var(--input-bg)',
+                color: 'var(--text-primary)',
+                fontWeight: 700,
+                fontSize: 16,
+                fontFamily: 'inherit',
+                cursor: intensityRating !== null ? 'pointer' : 'not-allowed',
+                boxShadow: intensityRating !== null ? '0 8px 32px rgba(200, 241, 53, 0.2)' : 'none',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              Done
+            </button>
+            
+            <button
+              onClick={() => handleFinishIntensityRating(null)}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--text-secondary)',
+                fontWeight: 600,
+                fontSize: 14,
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+                textDecoration: 'underline'
+              }}
+            >
+              Skip
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ─── Workout Completion Overlay ─── */}
       {workoutFinishedStats && (
         <div
@@ -1590,33 +2380,79 @@ function LogWorkoutContent() {
             padding: 24,
             textAlign: 'center',
             animation: 'fadeIn 0.3s ease-out forwards',
+            overflowY: 'auto'
           }}
         >
-          <div style={{ marginBottom: 24, animation: 'bounce 1s ease-out', filter: 'drop-shadow(0 0 32px rgba(200, 241, 53, 0.6))' }}>
+          <div style={{ marginBottom: 12, animation: 'bounce 1s ease-out', filter: 'drop-shadow(0 0 32px rgba(200, 241, 53, 0.6))' }}>
             <CheckCircleIcon size={72} color="var(--lime)" />
           </div>
-          <h1 style={{ color: 'white', fontSize: 32, fontWeight: 800, marginBottom: 32, lineHeight: 1.1 }}>Workout Complete!</h1>
+          <h1 style={{ color: 'white', fontSize: 32, fontWeight: 800, marginBottom: 16, lineHeight: 1.1 }}>Workout Complete!</h1>
+
+          {/* Calories Flame Banner */}
+          {finishedWorkout && finishedWorkout.calories !== undefined && (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 24 }}>
+              <span style={{ fontSize: 48, marginBottom: 4, filter: 'drop-shadow(0 4px 12px rgba(239, 68, 68, 0.2))' }}>🔥</span>
+              <span style={{ fontSize: 32, fontWeight: 900, color: 'white' }}>{finishedWorkout.calories} cal</span>
+              <span style={{ fontSize: 13, color: '#94a3b8', fontWeight: 600 }}>estimated calories burned</span>
+            </div>
+          )}
           
-          <div style={{ background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', borderRadius: 24, padding: '32px 24px', width: '100%', maxWidth: 320, marginBottom: 40, border: '1px solid rgba(255,255,255,0.12)', boxShadow: '0 8px 32px rgba(0,0,0,0.2)' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+          <div style={{ background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', borderRadius: 24, padding: '24px 20px', width: '100%', maxWidth: 320, marginBottom: 20, border: '1px solid rgba(255,255,255,0.12)', boxShadow: '0 8px 32px rgba(0,0,0,0.2)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
               <div>
-                <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Volume</p>
-                <p style={{ color: 'white', fontSize: 24, fontWeight: 700 }}>{workoutFinishedStats.volume.toLocaleString()}</p>
+                <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Volume</p>
+                <p style={{ color: 'white', fontSize: 20, fontWeight: 700 }}>{workoutFinishedStats.volume.toLocaleString()}{weightUnit}</p>
               </div>
               <div>
-                <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Sets</p>
-                <p style={{ color: 'white', fontSize: 24, fontWeight: 700 }}>{workoutFinishedStats.sets}</p>
+                <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Sets</p>
+                <p style={{ color: 'white', fontSize: 20, fontWeight: 700 }}>{workoutFinishedStats.sets}</p>
               </div>
               <div style={{ gridColumn: '1 / -1' }}>
-                <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Duration</p>
-                <p style={{ color: 'white', fontSize: 24, fontWeight: 700 }}>{workoutFinishedStats.duration} min</p>
+                <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Duration</p>
+                <p style={{ color: 'white', fontSize: 20, fontWeight: 700 }}>{workoutFinishedStats.duration} min</p>
               </div>
             </div>
           </div>
+
+          {/* Buddy Session Comparison */}
+          {buddyModeActive && buddyStats && (
+            <div style={{
+              background: 'rgba(255,255,255,0.04)',
+              borderRadius: 20,
+              padding: 16,
+              width: '100%',
+              maxWidth: 320,
+              marginBottom: 20,
+              border: '1px solid rgba(255,255,255,0.08)',
+              textAlign: 'left'
+            }}>
+              <p style={{ color: 'white', fontSize: 13, fontWeight: 800, marginBottom: 10, borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: 4 }}>
+                👥 Buddy Comparison
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: 600 }}>
+                    You: {workoutFinishedStats.sets} sets · {workoutFinishedStats.volume.toLocaleString()}{weightUnit}
+                  </span>
+                  {workoutFinishedStats.volume >= buddyStats.volume && (
+                    <span style={{ fontSize: 15 }}>🏆</span>
+                  )}
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: 600 }}>
+                    {buddyName || 'Buddy'}: {buddyStats.sets} sets · {buddyStats.volume.toLocaleString()}{weightUnit}
+                  </span>
+                  {buddyStats.volume >= workoutFinishedStats.volume && (
+                    <span style={{ fontSize: 15 }}>🏆</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
           
           {/* Notes per Workout */}
-          <div style={{ width: '100%', maxWidth: 320, marginBottom: 24, textAlign: 'left' }}>
-            <label style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: 12, fontWeight: 700, display: 'block', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+          <div style={{ width: '100%', maxWidth: 320, marginBottom: 20, textAlign: 'left' }}>
+            <label style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: 11, fontWeight: 700, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>
               How did it feel today?
             </label>
             <textarea
@@ -1625,13 +2461,13 @@ function LogWorkoutContent() {
               placeholder="Record energy levels, focus, accomplishments, or notes…"
               style={{
                 width: '100%',
-                height: 90,
+                height: 80,
                 borderRadius: 16,
                 background: 'rgba(255, 255, 255, 0.08)',
                 border: '1px solid rgba(255,255,255,0.15)',
                 color: 'white',
-                padding: '12px 14px',
-                fontSize: 14,
+                padding: '10px 12px',
+                fontSize: 13,
                 fontFamily: 'inherit',
                 outline: 'none',
                 resize: 'none',
@@ -1645,13 +2481,13 @@ function LogWorkoutContent() {
             style={{
               width: '100%',
               maxWidth: 320,
-              padding: '16px',
+              padding: '14px',
               borderRadius: 9999,
               border: 'none',
               background: 'var(--lime)',
               color: 'var(--text-primary)',
               fontWeight: 700,
-              fontSize: 16,
+              fontSize: 15,
               fontFamily: 'inherit',
               cursor: 'pointer',
               boxShadow: '0 8px 32px rgba(200, 241, 53, 0.2)',
@@ -1670,7 +2506,7 @@ function LogWorkoutContent() {
             style={{
               width: '100%',
               maxWidth: 320,
-              padding: '16px',
+              padding: '14px',
               borderRadius: 9999,
               border: templateSaved ? 'none' : '1px solid rgba(255,255,255,0.2)',
               background: templateSaved ? 'rgba(200, 241, 53, 0.15)' : 'rgba(255,255,255,0.06)',
@@ -1678,10 +2514,10 @@ function LogWorkoutContent() {
               WebkitBackdropFilter: 'blur(8px)',
               color: templateSaved ? 'var(--lime)' : 'white',
               fontWeight: 700,
-              fontSize: 16,
+              fontSize: 15,
               fontFamily: 'inherit',
               cursor: templateSaved ? 'default' : 'pointer',
-              marginTop: 12,
+              marginTop: 10,
               transition: 'all 0.2s ease',
               opacity: templateSaved ? 0.9 : 1,
               display: 'flex',
@@ -2077,7 +2913,7 @@ function LogWorkoutContent() {
               </button>
 
               <button
-                onClick={() => logSetFromSheet(logSheet.exerciseId, logSheet.setIndex, logSheet.weight, logSheet.reps)}
+                onClick={() => logSetFromSheet(logSheet.exerciseId, logSheet.setIndex, logSheet.weight, logSheet.reps, !!logSheet.isBuddy)}
                 style={{
                   width: '100%', height: 56, borderRadius: 9999, border: 'none',
                   background: 'var(--lime)', color: 'var(--text-primary)', fontWeight: 800,
@@ -2218,7 +3054,7 @@ function LogWorkoutContent() {
             }}
           >
             <button
-              onClick={() => startEditSetFromMenu(longPressedSet.exerciseId, longPressedSet.setIndex)}
+              onClick={() => startEditSetFromMenu(longPressedSet.exerciseId, longPressedSet.setIndex, !!longPressedSet.isBuddy)}
               style={{
                 padding: '10px 12px', background: 'none', border: 'none',
                 textAlign: 'left', fontWeight: 600, fontSize: 13,
@@ -2229,7 +3065,7 @@ function LogWorkoutContent() {
               Edit Set
             </button>
             <button
-              onClick={() => deleteSetAtIndex(longPressedSet.exerciseId, longPressedSet.setIndex)}
+              onClick={() => deleteSetAtIndex(longPressedSet.exerciseId, longPressedSet.setIndex, !!longPressedSet.isBuddy)}
               style={{
                 padding: '10px 12px', background: 'none', border: 'none',
                 textAlign: 'left', fontWeight: 600, fontSize: 13,

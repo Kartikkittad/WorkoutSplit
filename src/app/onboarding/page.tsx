@@ -86,7 +86,7 @@ export default function OnboardingPage() {
     } else {
       await updateSettings({ onboardingComplete: true });
     }
-    router.push('/app');
+    router.push('/');
   };
 
   // Simple swipe gesture handlers
@@ -167,7 +167,7 @@ export default function OnboardingPage() {
         >
           <div style={{ textAlign: 'center', marginBottom: 24 }}>
             <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 8, color: 'var(--text-primary)', lineHeight: 1.2 }}>
-              Welcome to LiftPulse 💪
+              Welcome to LiftPulse
             </h1>
             <p style={{ fontSize: 16, color: 'var(--text-secondary)' }}>
               Let's set up your profile

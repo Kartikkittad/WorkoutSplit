@@ -5,7 +5,7 @@ import { useSettings } from '@/components/SettingsContext';
 import { db } from '@/lib/dexie';
 
 export default function SettingsPage() {
-  const { userName, weightUnit, restTimerDuration, updateSettings } = useSettings();
+  const { userName, weightUnit, restTimerDuration, buddyName, updateSettings } = useSettings();
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [resetting, setResetting] = useState(false);
 
@@ -60,15 +60,27 @@ export default function SettingsPage() {
       {/* Profile Section */}
       <div className="card" style={{ marginBottom: 24 }}>
         <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16, color: 'var(--text-secondary)' }}>Profile</h2>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <label style={{ fontSize: 14, fontWeight: 600 }}>Your Name</label>
-          <input 
-            type="text" 
-            value={userName} 
-            onChange={e => updateSettings({ userName: e.target.value })}
-            className="input-field"
-            placeholder="Athlete"
-          />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <label style={{ fontSize: 14, fontWeight: 600 }}>Your Name</label>
+            <input 
+              type="text" 
+              value={userName} 
+              onChange={e => updateSettings({ userName: e.target.value })}
+              className="input-field"
+              placeholder="Athlete"
+            />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <label style={{ fontSize: 14, fontWeight: 600 }}>Buddy Name</label>
+            <input 
+              type="text" 
+              value={buddyName} 
+              onChange={e => updateSettings({ buddyName: e.target.value })}
+              className="input-field"
+              placeholder="Buddy"
+            />
+          </div>
         </div>
       </div>
 

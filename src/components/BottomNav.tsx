@@ -11,7 +11,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   {
     label: 'Home',
-    path: '/app',
+    path: '/',
     icon: (
       <svg viewBox="0 0 24 24" fill="currentColor">
         <path d="M12 3L4 9v12h5v-7h6v7h5V9l-8-6z" />
@@ -61,7 +61,7 @@ export default function BottomNav() {
   const router = useRouter();
 
   const isActive = (path: string) => {
-    if (path === '/app') return pathname === '/app';
+    if (path === '/') return pathname === '/';
     return pathname.startsWith(path);
   };
 

@@ -65,9 +65,10 @@ export async function migrateFromLocalStorage() {
 
 // ── Workout Functions ───────────────────────────────────────────────────────
 
-export async function getWorkouts(): Promise<Workout[]> {
+export async function getWorkouts(includeBuddy: boolean = false): Promise<Workout[]> {
   const workouts = await db.workouts.toArray();
-  return workouts.sort(
+  const filtered = includeBuddy ? workouts : workouts.filter(w => !w.buddy);
+  return filtered.sort(
     (a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime()
   );
 }

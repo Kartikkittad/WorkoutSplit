@@ -18,6 +18,7 @@ export class LiftPulseDB extends Dexie {
   prs!: Table<PersonalRecord, string>;
   settings!: Table<SettingRecord, number>;
   templates!: Table<Template, string>;
+  exercises_library!: Table<any, string>;
 
   constructor() {
     super('LiftPulseDB');
@@ -35,6 +36,15 @@ export class LiftPulseDB extends Dexie {
       prs: 'id, exerciseId',
       settings: '++id, &key',
       templates: 'id, lastUsed, createdAt'
+    });
+    this.version(3).stores({
+      workouts: '++id, startedAt',
+      splits: 'id',
+      bodyweights: 'id, date',
+      prs: 'id, exerciseId',
+      settings: '++id, &key',
+      templates: 'id, lastUsed, createdAt',
+      exercises_library: 'id, name, category'
     });
   }
 }

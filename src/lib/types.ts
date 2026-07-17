@@ -22,6 +22,11 @@ export interface Workout {
   notes?: string;
   exercises: WorkoutExercise[];
   supersets?: string[][]; // e.g. [["bench-press", "chest-fly"]]
+  buddy?: boolean;
+  isBuddySession?: boolean;
+  buddyName?: string;
+  calories?: number;
+  intensity?: number;
 }
 
 export interface ProgressDataPoint {

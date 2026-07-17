@@ -9,6 +9,7 @@ interface SettingsState {
   weightUnit: 'kg' | 'lbs';
   restTimerDuration: number; // in seconds
   onboardingComplete: boolean;
+  buddyName: string;
 }
 
 interface SettingsContextType extends SettingsState {
@@ -22,6 +23,7 @@ const defaultSettings: SettingsState = {
   weightUnit: 'kg',
   restTimerDuration: 60,
   onboardingComplete: false,
+  buddyName: '',
 };
 
 const SettingsContext = createContext<SettingsContextType | null>(null);
@@ -32,6 +34,7 @@ const getInitialSettings = (): SettingsState => {
   const name = isBrowser ? localStorage.getItem('user_name') || 'Athlete' : 'Athlete';
   const gender = isBrowser ? (localStorage.getItem('user_gender') as any) || null : null;
   const obComplete = isBrowser ? localStorage.getItem('onboarding_complete') === 'true' : false;
+  const buddyName = isBrowser ? localStorage.getItem('buddy_name') || '' : '';
 
   return {
     userName: name,
@@ -39,6 +42,7 @@ const getInitialSettings = (): SettingsState => {
     weightUnit: 'kg',
     restTimerDuration: 60,
     onboardingComplete: obComplete,
+    buddyName: buddyName,
   };
 };
 
@@ -60,6 +64,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         const onboardingComplete = settingsMap.onboarding_complete !== undefined
           ? settingsMap.onboarding_complete
           : settings.onboardingComplete;
+        const buddyName = settingsMap.buddy_name || '';
 
         setSettings({
           userName,
@@ -67,12 +72,14 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
           weightUnit: settingsMap.weightUnit || settings.weightUnit,
           restTimerDuration: settingsMap.restTimerDuration || settings.restTimerDuration,
           onboardingComplete,
+          buddyName,
         });
 
         // Sync to local storage
         localStorage.setItem('user_name', userName);
         if (userGender) localStorage.setItem('user_gender', userGender);
         localStorage.setItem('onboarding_complete', onboardingComplete ? 'true' : 'false');
+        localStorage.setItem('buddy_name', buddyName);
       } catch (err) {
         console.error('Failed to load settings from Dexie:', err);
       } finally {
@@ -105,6 +112,10 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       if (partial.onboardingComplete !== undefined) {
         await db.settings.put({ key: 'onboarding_complete', value: partial.onboardingComplete });
         localStorage.setItem('onboarding_complete', partial.onboardingComplete ? 'true' : 'false');
+      }
+      if (partial.buddyName !== undefined) {
+        await db.settings.put({ key: 'buddy_name', value: partial.buddyName });
+        localStorage.setItem('buddy_name', partial.buddyName);
       }
     } catch (err) {
       console.error('Failed to save settings:', err);

@@ -3,25 +3,7 @@
 import { useState } from 'react';
 import { useSettings } from './SettingsContext';
 
-interface WorkoutSet {
-  weight: number;
-  reps: number;
-  completed: boolean;
-}
-
-interface WorkoutExercise {
-  exerciseName: string;
-  sets: WorkoutSet[];
-}
-
-interface Workout {
-  id?: number | string;
-  name: string;
-  startedAt: string;
-  durationMinutes?: number;
-  notes?: string;
-  exercises: WorkoutExercise[];
-}
+import { Workout } from '@/lib/types';
 
 interface WorkoutCardProps {
   workout: Workout;
@@ -49,15 +31,25 @@ function formatTime(dateStr: string): string {
 export default function WorkoutCard({ workout, onDelete }: WorkoutCardProps) {
   const [expanded, setExpanded] = useState(false);
   const { weightUnit } = useSettings();
-  const { name, startedAt, exercises, durationMinutes, notes } = workout;
+  const { name, startedAt, exercises, durationMinutes, notes, intensity, calories, isBuddySession } = workout;
 
   const totalSets = exercises.reduce((sum, ex) => sum + ex.sets.length, 0);
   const completedSets = exercises.reduce(
     (sum, ex) => sum + ex.sets.filter(s => s.completed).length, 0
   );
 
+  // Colored left border based on intensity:
+  // 1-2: slate border, 3: blue border, 4: lime border, 5: orange border (#F97316)
+  let borderLeftColor = undefined;
+  if (intensity) {
+    if (intensity <= 2) borderLeftColor = '4px solid #64748B';
+    else if (intensity === 3) borderLeftColor = '4px solid #3B82F6';
+    else if (intensity === 4) borderLeftColor = '4px solid #C8F135';
+    else if (intensity === 5) borderLeftColor = '4px solid #F97316';
+  }
+
   return (
-    <div className="card" style={{ overflow: 'hidden' }}>
+    <div className="card" style={{ overflow: 'hidden', borderLeft: borderLeftColor }}>
       {/* Header — clickable to expand */}
       <div
         onClick={() => setExpanded(!expanded)}
@@ -73,19 +65,31 @@ export default function WorkoutCard({ workout, onDelete }: WorkoutCardProps) {
             <p style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 500, marginBottom: 2 }}>
               {formatDate(startedAt)} · {formatTime(startedAt)}
             </p>
-            <h3 style={{ fontSize: 16, fontWeight: 700 }}>{name}</h3>
+            <h3 style={{ fontSize: 16, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6, margin: 0 }}>
+              {name} {isBuddySession && <span style={{ fontSize: 14 }} title="Buddy Session">👥</span>}
+            </h3>
           </div>
-          <svg
-            width={18} height={18} viewBox="0 0 24 24" fill="var(--text-secondary)"
-            style={{
-              transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)',
-              transition: 'transform 0.2s ease',
-              flexShrink: 0,
-              marginTop: 4,
-            }}
-          >
-            <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
-          </svg>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {calories && (
+              <span style={{
+                fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 9999,
+                background: 'rgba(249,115,22,0.1)', color: '#F97316', display: 'flex', alignItems: 'center', gap: 2
+              }}>
+                🔥 {Math.round(calories)} cal
+              </span>
+            )}
+            <svg
+              width={18} height={18} viewBox="0 0 24 24" fill="var(--text-secondary)"
+              style={{
+                transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                transition: 'transform 0.2s ease',
+                flexShrink: 0,
+                marginTop: 2,
+              }}
+            >
+              <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
+            </svg>
+          </div>
         </div>
 
         {/* Summary chips */}
