@@ -65,7 +65,54 @@ export async function migrateFromLocalStorage() {
 
 // ── Workout Functions ───────────────────────────────────────────────────────
 
+let cleanupDone = false;
+
+async function cleanupMockWorkoutsOnce() {
+  if (cleanupDone) return;
+  const isBrowser = typeof window !== 'undefined';
+  if (!isBrowser) return;
+
+  const flag = 'workoutsplit_mock_cleaned_v1';
+  if (localStorage.getItem(flag)) {
+    cleanupDone = true;
+    return;
+  }
+
+  try {
+    const workouts = await db.workouts.toArray();
+    const mockNames = new Set(['Push Day', 'Pull Day', 'Leg Day', 'Upper Body', 'Full Body']);
+    const idsToDelete: (string | number)[] = [];
+
+    for (const w of workouts) {
+      if (
+        w.id &&
+        mockNames.has(w.name) &&
+        w.startedAt.endsWith('.000Z') &&
+        w.completedAt?.endsWith('.000Z') &&
+        w.notes === undefined &&
+        w.intensity === undefined &&
+        w.calories === undefined &&
+        w.buddy === undefined &&
+        w.isBuddySession === undefined
+      ) {
+        idsToDelete.push(w.id);
+      }
+    }
+
+    if (idsToDelete.length > 0) {
+      await db.workouts.bulkDelete(idsToDelete);
+      console.log(`Cleaned up ${idsToDelete.length} mock workouts.`);
+    }
+
+    localStorage.setItem(flag, 'true');
+    cleanupDone = true;
+  } catch (err) {
+    console.error('Failed to cleanup mock workouts:', err);
+  }
+}
+
 export async function getWorkouts(includeBuddy: boolean = false): Promise<Workout[]> {
+  await cleanupMockWorkoutsOnce();
   const workouts = await db.workouts.toArray();
   const filtered = includeBuddy ? workouts : workouts.filter(w => !w.buddy);
   return filtered.sort(

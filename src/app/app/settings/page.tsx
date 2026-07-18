@@ -11,7 +11,8 @@ export default function SettingsPage() {
 
   const handleExportCSV = async () => {
     try {
-      const workouts = await db.workouts.toArray();
+      const { getWorkouts } = await import('@/lib/storage');
+      const workouts = await getWorkouts();
       let csv = 'Date,Workout Name,Exercise,Set,Weight,Reps\n';
       
       workouts.forEach(w => {
