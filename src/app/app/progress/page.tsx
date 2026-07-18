@@ -521,10 +521,11 @@ function ProgressContent() {
               </span>
             </div>
 
-            {/* Dark stage so the holographic glow reads properly */}
+            {/* White stage for the anatomy model */}
             <div style={{
               borderRadius: 16,
-              background: 'radial-gradient(ellipse at 50% 30%, #12233d 0%, #0a1628 70%)',
+              background: '#FFFFFF',
+              border: '1px solid var(--border-light)',
               overflow: 'hidden',
               marginBottom: 14,
             }}>
@@ -532,7 +533,7 @@ function ProgressContent() {
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: 16, marginBottom: 12 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><div style={{ width: 12, height: 12, borderRadius: 3, background: '#FFE066' }} /><span style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 600 }}>1x</span></div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><div style={{ width: 12, height: 12, borderRadius: 3, background: '#FFD43B' }} /><span style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 600 }}>1x</span></div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><div style={{ width: 12, height: 12, borderRadius: 3, background: '#FF922B' }} /><span style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 600 }}>2x</span></div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><div style={{ width: 12, height: 12, borderRadius: 3, background: '#FA5252' }} /><span style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 600 }}>3x+</span></div>
             </div>
