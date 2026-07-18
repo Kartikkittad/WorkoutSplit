@@ -120,7 +120,7 @@ export default function CreateSplitPage() {
         createdAt: new Date().toISOString(),
       });
       await setActiveSplit(split.id);
-      router.push('/');
+      router.push('/app');
     } catch {
       setSaving(false);
     }

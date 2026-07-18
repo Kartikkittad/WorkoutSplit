@@ -140,12 +140,6 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && window.location.pathname === '/app') {
-      router.replace('/');
-    }
-  }, [router]);
-
-  useEffect(() => {
     const calculateStreak = async () => {
       const { db } = await import('@/lib/dexie');
       

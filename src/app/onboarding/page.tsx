@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSettings } from '@/components/SettingsContext';
+import { isStandalone } from '@/lib/pwa';
 
 const DumbbellIcon = ({ size = 80, color = 'currentColor' }: { size?: number, color?: string }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
@@ -60,6 +61,16 @@ export default function OnboardingPage() {
   const [gender, setGender] = useState<'male' | 'female' | null>(null);
   const { updateSettings } = useSettings();
   const router = useRouter();
+  const [allowed, setAllowed] = useState(false);
+
+  useEffect(() => {
+    // Onboarding is part of the PWA-only flow. Browser visitors go to landing.
+    if (!isStandalone()) {
+      router.replace('/');
+      return;
+    }
+    setAllowed(true);
+  }, [router]);
 
   const totalSlides = 4;
 
@@ -108,6 +119,8 @@ export default function OnboardingPage() {
     }
     if (touchEndX - touchStartX > 50) handlePrev();
   };
+
+  if (!allowed) return null;
 
   return (
     <div 

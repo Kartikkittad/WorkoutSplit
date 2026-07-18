@@ -1102,7 +1102,7 @@ function LogWorkoutContent() {
         }
       }
 
-      router.push('/');
+      router.push('/app');
     } catch (e) {
       console.error(e);
     }
@@ -1115,7 +1115,7 @@ function LogWorkoutContent() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <button
-            onClick={() => router.push('/')}
+            onClick={() => router.push('/app')}
             aria-label="Go back"
             style={{
               width: 44,

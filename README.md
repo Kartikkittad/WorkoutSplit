@@ -1,270 +1,163 @@
----
-## Project Details
-
-Name: WorkoutSplit
-Version: v1.0.2
-Tagline: Track every lift. Chase every PR. Built for the gym floor.
-Type: Progressive Web App (PWA)
-Stack: Next.js 14, TypeScript, Tailwind CSS, Dexie.js (IndexedDB)
-Deployment: Netlify
----
-
-## README Structure — build exactly this:
-
-### 1. Hero Section
-
 <div align="center">
+  <img src="public/icon-192.png" width="100" alt="WorkoutSplit logo" />
 
-# 🏋️ WorkoutSplit
+  <h1>WorkoutSplit</h1>
 
-### Track every lift. Chase every PR. Built for the gym floor.
+  <p><strong>Track every lift. Chase every PR. Built for the gym floor.</strong></p>
 
-![Next.js](https://img.shields.io/badge/Next.js-14-black?style=for-the-badge&logo=next.js)
-![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript)
-![PWA](https://img.shields.io/badge/PWA-Ready-purple?style=for-the-badge&logo=pwa)
-![Tailwind](https://img.shields.io/badge/Tailwind-3.0-38BDF8?style=for-the-badge&logo=tailwindcss)
-![Netlify](https://img.shields.io/badge/Netlify-Deployed-00C7B7?style=for-the-badge&logo=netlify)
-![Version](https://img.shields.io/badge/Version-v1.0.2-lime?style=for-the-badge)
+  <p>
+    <img src="https://img.shields.io/badge/Next.js-16-black?style=for-the-badge&logo=next.js" alt="Next.js" />
+    <img src="https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript" alt="TypeScript" />
+    <img src="https://img.shields.io/badge/PWA-Ready-purple?style=for-the-badge&logo=pwa" alt="PWA" />
+    <img src="https://img.shields.io/badge/CSS-Vanilla-1572B6?style=for-the-badge&logo=css3" alt="CSS" />
+    <img src="https://img.shields.io/badge/IndexedDB-Dexie-0F172A?style=for-the-badge&logo=databricks" alt="Dexie" />
+    <img src="https://img.shields.io/badge/Version-v1.0.2-lime?style=for-the-badge" alt="Version" />
+  </p>
 
-[🚀 Live Demo](https://workoutsplit.netlify.app) ·
-[🐛 Report Bug](https://github.com/yourusername/workoutsplit/issues) ·
-[💡 Request Feature](https://github.com/yourusername/workoutsplit/issues)
-
-<!-- Add app screenshot here -->
-
+  <p>
+    <a href="https://workoutsplit.netlify.app">🚀 Live Demo</a> ·
+    <a href="https://github.com/yourusername/workoutsplit/issues">🐛 Report Bug</a> ·
+    <a href="https://github.com/yourusername/workoutsplit/issues">💡 Request Feature</a>
+  </p>
 </div>
 
----
+## The Problem
 
-### 2. About Section
+Every gym-goer knows the pain: fitness apps that demand expensive monthly subscriptions, harvest personal data, require account creation, bombard you with ads between sets, and weigh in at hundreds of megabytes. On the other hand, logging workouts in a plain Notes app is tedious, manual, and does not calculate progressive overload or track personal records automatically.
 
-WorkoutSplit is a progressive web app built for serious
-gym goers who want to track progressive overload, chase
-PRs, and actually see their progress over time.
+## The Solution
 
-No login required. No internet needed in the gym.
-Install it on your home screen and it works like a
-native app — because it is one.
+**WorkoutSplit** is a free, open-source, privacy-first, offline-first Progressive Web App (PWA) designed to do one thing exceptionally well: **track your workouts**. There are no accounts, no cloud dependencies, and zero ads. The entire application is under 1MB, installs directly to your phone's home screen, and works fully offline in areas of the gym with poor or no cellular reception.
 
-Built by a developer who was tired of noting workouts
-in Notes app.
+## Who is this for
 
----
+* **Serious lifters** who want a fast, distraction-free logging tool on the gym floor.
+* **Privacy-conscious athletes** who want all of their personal training logs to stay securely on their own device.
+* **Gym-goers in poor signal areas** who need reliable offline functionality.
+* **Training partners** who want to leverage the built-in Buddy Mode to log workouts together.
 
-### 3. Features
+## How it works
 
-## 🏋️ Core Tracking
+WorkoutSplit uses Dexie.js to store all your data locally in your browser's IndexedDB. Everything runs client-side inside your browser sandbox. When you construct a split or log a session, the data stays on your device. You can track progress, view interactive charts, or export history to CSV without ever making network requests. If you use Buddy Mode, the app logs sets for both you and your partner side-by-side, saving individual sessions under separate profiles.
 
-- Workout split creator (Push/Pull/Legs, Upper/Lower, custom)
-- Gym friendly set logging with smooth bottom sheet UI
-- Big number pickers built for sweaty hands, one thumb
-- Repeat last set in one tap — most used action in gym
-- Superset support with chain grouping 🔗
-- Built in rest timer with vibration alerts
-- Plate calculator — know exactly what to load on the bar
+## Features
 
-## 📈 Progressive Overload Engine
+### 🏋️ Core Tracking
+* **Workout Split Builder**: Design custom workout routines (Push/Pull/Legs, Upper/Lower, or custom days) and set active splits.
+* **Gym-Friendly Logger**: Quick set logging with smooth input sheets designed for one-handed operation on the gym floor.
+* **Auto Rest Timer**: Floating timer with circular SVG countdown and vibration alerts when your rest finishes.
+* **Plate Calculator**: Tells you exactly what plates to load on the barbell for any given weight target.
 
-- Auto suggests weight increase based on your last session
-- Shows "Last time: 60kg × 8 · Target today: 62.5kg × 8 🎯"
-- Tracks every set across every session historically
+### 📈 Progressive Overload
+* **Target Calibration**: Automatically suggests weight and reps based on your last logged session (e.g. `Last: 60kg × 8 · Target: 62.5kg × 8`).
+* **Real-Time PR Detection**: Alerts you with a fullscreen celebration overlay when you hit a new personal record.
+* **Shareable PR Cards**: Generate shareable images built for Instagram and WhatsApp stories.
 
-## 🏆 PR Detection & Celebration
+### 📊 Analytics
+* **Custom SVG Analytics**: High-performance interactive line charts showing Max Weight, Volume, and total sets over time.
+* **Body Visualizer & Heatmap**: 3D body visualizer and heatmap to track training frequency and muscle group activation.
+* **Calories Burned Estimation**: MET-based calculation tailored to your body weight and gender.
 
-- Detects personal records automatically in real time
-- Fullscreen celebration overlay when you hit a new PR 🎉
-- Complete PR history with dates and weights
-- Shareable PR card — built for Instagram and WhatsApp stories
+### 📋 Management
+* **Workout Templates**: Save completed workouts as templates to load in a single tap later.
+* **Export/Import**: Full export to CSV so you retain complete ownership of your data.
 
-## 📊 Progress & Analytics
+## Tech Stack
 
-- Exercise progress line charts (powered by Recharts)
-- Muscle group heatmap — visualize what you trained this week
-- Estimated calories burned per session (MET based formula)
-- Workout intensity rating (😴 Easy → ⚡ Beast mode)
-- Body weight tracker with 14 day trend chart
-- Weekly calories summary on home screen
+| Layer | Technology | Purpose |
+|---|---|---|
+| **Framework** | Next.js 16 (App Router) | Core React-based app framework |
+| **Language** | TypeScript 5 | Safe, type-safe development |
+| **Styling** | Vanilla CSS | Fast, lightweight UI styling |
+| **Storage** | Dexie.js (IndexedDB) | Client-side offline local database |
+| **3D Rendering** | Three.js | Interactive 3D body visualizer |
+| **Canvas** | HTML2Canvas | PR card image generation |
 
-## 🔥 Motivation & Streaks
+## Getting Started
 
-- Consecutive workout streak tracker
-- Milestone celebrations at 3, 7, 30 days
-- Weekly training summary on home screen
+### Prerequisites
+* Node.js 18+
+* npm or yarn
 
-## 📋 Workout Management
+### Installation
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/yourusername/workoutsplit.git
+   cd workoutsplit
+   ```
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Run the development server:
+   ```bash
+   npm run dev
+   ```
+4. Open the application in your browser:
+   [http://localhost:3000](http://localhost:3000)
 
-- Save workouts as reusable templates
-- Load templates in one tap on any day
-- Complete workout history with expandable sessions
-- Notes per workout — log how you felt
-- Export all data as CSV
-
-## ⚙️ Settings & Personalisation
-
-- Name and gender setup in onboarding
-- Weight unit toggle kg / lbs (converts automatically)
-- Default rest timer customisation
-- Reset all data option
-
-## 📱 PWA Features
-
-- Install on iPhone or Android home screen
-- Works fully offline — no internet needed in gym
-- Vibration alerts for rest timer
-- Native share sheet for PR cards
-- No login, no account, no subscription
-
----
-
-### 4. Tech Stack
-
-| Layer      | Technology              | Purpose                  |
-| ---------- | ----------------------- | ------------------------ |
-| Framework  | Next.js 14 (App Router) | Core PWA framework       |
-| Language   | TypeScript              | Type safety              |
-| Styling    | Tailwind CSS            | UI design                |
-| Storage    | Dexie.js (IndexedDB)    | Offline local database   |
-| Charts     | Recharts                | Progress visualizations  |
-| PWA        | next-pwa                | Service worker, offline  |
-| Deployment | Netlify                 | Hosting and CDN          |
-| Canvas     | html2canvas             | PR card image generation |
-
----
-
-### 5. Getting Started
-
-## Prerequisites
-
-- Node.js 18+
-- npm or yarn
-
-## Installation
-
-# Clone the repo
-
-git clone https://github.com/yourusername/workoutsplit.git
-
-# Navigate to project
-
-cd workoutsplit
-
-# Install dependencies
-
-npm install
-
-# Run development server
-
-npm run dev
-
-# Open in browser
-
-http://localhost:3000
-
-## Build for Production
-
+### Build for Production
+```bash
 npm run build
 npm start
+```
 
-## Deploy to Netlify
+## Project Structure
 
-1. Push to GitHub
-2. Connect repo on netlify.com
-3. Build command: npm run build
-4. Publish directory: .next
-5. Deploy
-
----
-
-### 6. Project Structure
-
+```text
 workoutsplit/
-├── app/ # Next.js App Router pages
-│ ├── page.tsx # Home screen
-│ ├── log/ # Workout logging
-│ ├── history/ # Session history
-│ ├── progress/ # Charts and analytics
-│ ├── splits/ # Split creator
-│ └── settings/ # App settings
-├── components/ # Reusable UI components
-│ ├── BottomSheet.tsx # Gym friendly set logger
-│ ├── RestTimer.tsx # Floating rest timer
-│ ├── PRCelebration.tsx # PR overlay
-│ └── Navigation.tsx # Bottom nav bar
-├── lib/
-│ └── db.ts # Dexie database schema
-├── public/
-│ └── manifest.json # PWA manifest
-└── netlify.toml # Netlify config
+├── src/
+│   ├── app/                # Next.js App Router pages
+│   │   ├── page.tsx        # Dashboard
+│   │   ├── create/         # Split builder
+│   │   ├── history/        # History page
+│   │   ├── log/            # Active logger
+│   │   ├── progress/       # Analytics & charts
+│   │   └── settings/       # Settings page
+│   ├── components/         # Reusable React components
+│   │   ├── BodyVisualizer3D.tsx
+│   │   ├── LineChart.tsx
+│   │   └── RestTimer.tsx
+│   └── lib/                # Core logic & database
+│       ├── dexie.ts        # IndexedDB setup
+│       ├── storage.ts      # Data helper methods
+│       └── seed.ts         # Database initialization
+└── public/                 # Static assets & PWA files
+    └── sw.js               # Service worker for offline use
+```
 
----
+## Roadmap
 
-### 7. Roadmap
+### v1.0.2 (Current Release)
+* [x] Workout split builder & template loader
+* [x] Gym-friendly log sheet
+* [x] Live rest timer with vibrations
+* [x] Real-time PR detection
+* [x] Streak tracking & milestones
+* [x] Buddy Mode session logging
+* [x] Calories burned dashboard
+* [x] Offline PWA capabilities
 
-### v1.0.2 (Current)
+### v2.0.0 (Upcoming)
+* [ ] Cloud sync backup via Supabase
+* [ ] Real-time local Bluetooth sync with training buddy
+* [ ] Apple Health & Google Fit connections
+* [ ] Smart progression analytics with AI-driven suggestions
 
-- [x] Core workout logging with bottom sheet UI
-- [x] Progressive overload tracking
-- [x] PR detection and celebration
-- [x] Progress charts and muscle heatmap
-- [x] Streak tracking
-- [x] Gym buddy mode
-- [x] Estimated calories
-- [x] PWA offline support
-- [x] Workout templates
-- [x] Plate calculator
+## Contributing
 
-### v2.0.0 (Coming Soon)
+Contributions are always welcome! If you want to contribute:
+1. Fork this repository.
+2. Create a feature branch (`git checkout -b feature/AmazingFeature`).
+3. Commit your changes (`git commit -m 'feat: Add some AmazingFeature'`).
+4. Push to the branch (`git push origin feature/AmazingFeature`).
+5. Open a Pull Request.
 
-- [ ] Cloud sync with Supabase
-- [ ] Google and email login
-- [ ] QR code gym buddy — real time multiplayer logging
-- [ ] Apple Health and Google Fit integration
-- [ ] AI powered workout recommendations
-- [ ] Social features — share workouts with friends
+## License
 
----
-
-### 8. Contributing
-
-Contributions are welcome! Please:
-
-1. Fork the repo
-2. Create a feature branch (git checkout -b feature/AmazingFeature)
-3. Commit changes (git commit -m 'feat: add AmazingFeature')
-4. Push to branch (git push origin feature/AmazingFeature)
-5. Open a Pull Request
-
----
-
-### 9. License
-
-Distributed under the MIT License.
-See LICENSE for more information.
-
----
-
-### 10. Contact & Links
-
-Kartik Kittad
-LinkedIn: linkedin.com/in/kartik-kittad-40351023a
-GitHub: github.com/yourusername
-Email: kartikkittad85@gmail.com
-
----
+Distributed under the MIT License. See [LICENSE](LICENSE) for details.
 
 <div align="center">
-Built with 💪 by Kartik Kittad
-If this helped you, give it a ⭐ on GitHub!
+  <p>Built with 💪 by Kartik Kittad</p>
+  <p>If you find this project helpful, please consider leaving a ⭐ on GitHub!</p>
 </div>
-
----
-
-## Instructions for generating this README:
-
-- Output as a single clean markdown file
-- No extra explanation before or after
-- Use exact formatting shown above
-- Keep all emojis
-- Make sure all markdown renders correctly
-- Version must show v1.0.2 everywhere
-- File should be named README.md

@@ -3,16 +3,13 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
-export default function RootPage() {
+// The landing page now lives at the root route ("/"). Keep this path working
+// by forwarding any old links there.
+export default function LandingRedirect() {
   const router = useRouter();
 
   useEffect(() => {
-    const obComplete = localStorage.getItem('onboarding_complete') === 'true';
-    if (obComplete) {
-      router.replace('/app');
-    } else {
-      router.replace('/onboarding');
-    }
+    router.replace('/');
   }, [router]);
 
   return null;
