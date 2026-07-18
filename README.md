@@ -16,8 +16,8 @@
 
   <p>
     <a href="https://workoutsplit.netlify.app">🚀 Live Demo</a> ·
-    <a href="https://github.com/yourusername/workoutsplit/issues">🐛 Report Bug</a> ·
-    <a href="https://github.com/yourusername/workoutsplit/issues">💡 Request Feature</a>
+    <a href="https://github.com/Kartikkittad/WorkoutSplit/issues">🐛 Report Bug</a> ·
+    <a href="https://github.com/Kartikkittad/WorkoutSplit/issues">💡 Request Feature</a>
   </p>
 </div>
 
@@ -31,10 +31,10 @@ Every gym-goer knows the pain: fitness apps that demand expensive monthly subscr
 
 ## Who is this for
 
-* **Serious lifters** who want a fast, distraction-free logging tool on the gym floor.
-* **Privacy-conscious athletes** who want all of their personal training logs to stay securely on their own device.
-* **Gym-goers in poor signal areas** who need reliable offline functionality.
-* **Training partners** who want to leverage the built-in Buddy Mode to log workouts together.
+- **Serious lifters** who want a fast, distraction-free logging tool on the gym floor.
+- **Privacy-conscious athletes** who want all of their personal training logs to stay securely on their own device.
+- **Gym-goers in poor signal areas** who need reliable offline functionality.
+- **Training partners** who want to leverage the built-in Buddy Mode to log workouts together.
 
 ## How it works
 
@@ -43,43 +43,49 @@ WorkoutSplit uses Dexie.js to store all your data locally in your browser's Inde
 ## Features
 
 ### 🏋️ Core Tracking
-* **Workout Split Builder**: Design custom workout routines (Push/Pull/Legs, Upper/Lower, or custom days) and set active splits.
-* **Gym-Friendly Logger**: Quick set logging with smooth input sheets designed for one-handed operation on the gym floor.
-* **Auto Rest Timer**: Floating timer with circular SVG countdown and vibration alerts when your rest finishes.
-* **Plate Calculator**: Tells you exactly what plates to load on the barbell for any given weight target.
+
+- **Workout Split Builder**: Design custom workout routines (Push/Pull/Legs, Upper/Lower, or custom days) and set active splits.
+- **Gym-Friendly Logger**: Quick set logging with smooth input sheets designed for one-handed operation on the gym floor.
+- **Auto Rest Timer**: Floating timer with circular SVG countdown and vibration alerts when your rest finishes.
+- **Plate Calculator**: Tells you exactly what plates to load on the barbell for any given weight target.
 
 ### 📈 Progressive Overload
-* **Target Calibration**: Automatically suggests weight and reps based on your last logged session (e.g. `Last: 60kg × 8 · Target: 62.5kg × 8`).
-* **Real-Time PR Detection**: Alerts you with a fullscreen celebration overlay when you hit a new personal record.
-* **Shareable PR Cards**: Generate shareable images built for Instagram and WhatsApp stories.
+
+- **Target Calibration**: Automatically suggests weight and reps based on your last logged session (e.g. `Last: 60kg × 8 · Target: 62.5kg × 8`).
+- **Real-Time PR Detection**: Alerts you with a fullscreen celebration overlay when you hit a new personal record.
+- **Shareable PR Cards**: Generate shareable images built for Instagram and WhatsApp stories.
 
 ### 📊 Analytics
-* **Custom SVG Analytics**: High-performance interactive line charts showing Max Weight, Volume, and total sets over time.
-* **Body Visualizer & Heatmap**: 3D body visualizer and heatmap to track training frequency and muscle group activation.
-* **Calories Burned Estimation**: MET-based calculation tailored to your body weight and gender.
+
+- **Custom SVG Analytics**: High-performance interactive line charts showing Max Weight, Volume, and total sets over time.
+- **Body Visualizer & Heatmap**: 3D body visualizer and heatmap to track training frequency and muscle group activation.
+- **Calories Burned Estimation**: MET-based calculation tailored to your body weight and gender.
 
 ### 📋 Management
-* **Workout Templates**: Save completed workouts as templates to load in a single tap later.
-* **Export/Import**: Full export to CSV so you retain complete ownership of your data.
+
+- **Workout Templates**: Save completed workouts as templates to load in a single tap later.
+- **Export/Import**: Full export to CSV so you retain complete ownership of your data.
 
 ## Tech Stack
 
-| Layer | Technology | Purpose |
-|---|---|---|
-| **Framework** | Next.js 16 (App Router) | Core React-based app framework |
-| **Language** | TypeScript 5 | Safe, type-safe development |
-| **Styling** | Vanilla CSS | Fast, lightweight UI styling |
-| **Storage** | Dexie.js (IndexedDB) | Client-side offline local database |
-| **3D Rendering** | Three.js | Interactive 3D body visualizer |
-| **Canvas** | HTML2Canvas | PR card image generation |
+| Layer            | Technology              | Purpose                            |
+| ---------------- | ----------------------- | ---------------------------------- |
+| **Framework**    | Next.js 16 (App Router) | Core React-based app framework     |
+| **Language**     | TypeScript 5            | Safe, type-safe development        |
+| **Styling**      | Vanilla CSS             | Fast, lightweight UI styling       |
+| **Storage**      | Dexie.js (IndexedDB)    | Client-side offline local database |
+| **3D Rendering** | Three.js                | Interactive 3D body visualizer     |
+| **Canvas**       | HTML2Canvas             | PR card image generation           |
 
 ## Getting Started
 
 ### Prerequisites
-* Node.js 18+
-* npm or yarn
+
+- Node.js 18+
+- npm or yarn
 
 ### Installation
+
 1. Clone the repository:
    ```bash
    git clone https://github.com/yourusername/workoutsplit.git
@@ -97,6 +103,7 @@ WorkoutSplit uses Dexie.js to store all your data locally in your browser's Inde
    [http://localhost:3000](http://localhost:3000)
 
 ### Build for Production
+
 ```bash
 npm run build
 npm start
@@ -129,24 +136,27 @@ workoutsplit/
 ## Roadmap
 
 ### v1.0.2 (Current Release)
-* [x] Workout split builder & template loader
-* [x] Gym-friendly log sheet
-* [x] Live rest timer with vibrations
-* [x] Real-time PR detection
-* [x] Streak tracking & milestones
-* [x] Buddy Mode session logging
-* [x] Calories burned dashboard
-* [x] Offline PWA capabilities
+
+- [x] Workout split builder & template loader
+- [x] Gym-friendly log sheet
+- [x] Live rest timer with vibrations
+- [x] Real-time PR detection
+- [x] Streak tracking & milestones
+- [x] Buddy Mode session logging
+- [x] Calories burned dashboard
+- [x] Offline PWA capabilities
 
 ### v2.0.0 (Upcoming)
-* [ ] Cloud sync backup via Supabase
-* [ ] Real-time local Bluetooth sync with training buddy
-* [ ] Apple Health & Google Fit connections
-* [ ] Smart progression analytics with AI-driven suggestions
+
+- [ ] Cloud sync backup via Supabase
+- [ ] Real-time local Bluetooth sync with training buddy
+- [ ] Apple Health & Google Fit connections
+- [ ] Smart progression analytics with AI-driven suggestions
 
 ## Contributing
 
 Contributions are always welcome! If you want to contribute:
+
 1. Fork this repository.
 2. Create a feature branch (`git checkout -b feature/AmazingFeature`).
 3. Commit your changes (`git commit -m 'feat: Add some AmazingFeature'`).
