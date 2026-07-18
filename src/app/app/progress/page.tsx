@@ -2,11 +2,21 @@
 
 import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import LineChart from '@/components/LineChart';
 import { EXERCISES } from '@/lib/exercises';
 import { ProgressDataPoint, PersonalRecord, Workout } from '@/lib/types';
 import { useSettings } from '@/components/SettingsContext';
-import BodyHeatmapSVG from '@/components/BodyHeatmapSVG';
+
+// three.js needs the browser — load the 3D body on the client only
+const BodyVisualizer3D = dynamic(() => import('@/components/BodyVisualizer3D'), {
+  ssr: false,
+  loading: () => (
+    <div style={{ height: 280, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', fontSize: 13 }}>
+      Loading 3D model...
+    </div>
+  ),
+});
 
 const BarChartIcon = ({ size = 24, color = 'currentColor' }: { size?: number; color?: string }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
@@ -63,7 +73,6 @@ function ProgressContent() {
   const [isSharing, setIsSharing] = useState(false);
   const [prImages, setPrImages] = useState<Record<string, string>>({});
   const [activeSection, setActiveSection] = useState<'exercises' | 'calories' | 'intensity'>('exercises');
-  const [bodyView, setBodyView] = useState<'front' | 'back'>('front');
 
   const muscleCounts = useMemo(() => {
     const EXERCISE_TO_MUSCLE: Record<string, string> = {
@@ -91,14 +100,6 @@ function ProgressContent() {
     });
     return counts;
   }, [workouts]);
-
-  const getMuscleColor = (muscle: string) => {
-    const count = muscleCounts[muscle] || 0;
-    if (count === 0) return '#F1F5F9';
-    if (count === 1) return '#D9F99D';
-    if (count === 2) return '#A3E635';
-    return '#65A30D';
-  };
 
   useEffect(() => {
     setLoading(true);
@@ -502,61 +503,57 @@ function ProgressContent() {
             </div>
           </div>
 
-          {/* Muscle Group Heatmap */}
-          {(() => {
-            return (
-              <div className="card" style={{ padding: 18, marginBottom: 24 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                  <h2 style={{ fontSize: 16, fontWeight: 700 }}>Muscle Group Heatmap</h2>
-                  <button
-                    onClick={() => setBodyView(v => v === 'front' ? 'back' : 'front')}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 6,
-                      border: '1px solid #E2E8F0', background: '#F8FAFC', borderRadius: 9999,
-                      padding: '5px 12px', cursor: 'pointer', fontFamily: 'inherit',
-                      fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)',
-                      transition: 'all 0.2s ease',
-                    }}
-                  >
-                    <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                      <path d="M3 3v5h5" />
-                      <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
-                      <path d="M21 21v-5h-5" />
-                    </svg>
-                    {bodyView === 'front' ? 'Front' : 'Back'}
-                  </button>
-                </div>
+          {/* Muscle Group Heatmap — 3D */}
+          <div className="card" style={{ padding: 18, marginBottom: 24 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <h2 style={{ fontSize: 16, fontWeight: 700 }}>Muscle Group Heatmap</h2>
+              <span style={{
+                display: 'flex', alignItems: 'center', gap: 5,
+                fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)',
+                background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 9999,
+                padding: '5px 12px',
+              }}>
+                <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                  <path d="M3 3v5h5" />
+                </svg>
+                Drag to rotate
+              </span>
+            </div>
 
-                <div style={{ display: 'flex', justifyContent: 'center', padding: '8px 0', minHeight: 300 }}>
-                  <BodyHeatmapSVG muscleCounts={muscleCounts} view={bodyView} />
-                </div>
+            {/* Dark stage so the holographic glow reads properly */}
+            <div style={{
+              borderRadius: 16,
+              background: 'radial-gradient(ellipse at 50% 30%, #12233d 0%, #0a1628 70%)',
+              overflow: 'hidden',
+              marginBottom: 14,
+            }}>
+              <BodyVisualizer3D muscleCounts={muscleCounts} />
+            </div>
 
-                <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: 16, marginTop: 14, marginBottom: 12 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><div style={{ width: 12, height: 12, borderRadius: 3, background: '#D9F99D', border: '1px solid #A3E635' }} /><span style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 600 }}>1x</span></div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><div style={{ width: 12, height: 12, borderRadius: 3, background: '#A3E635' }} /><span style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 600 }}>2x</span></div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><div style={{ width: 12, height: 12, borderRadius: 3, background: '#65A30D' }} /><span style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 600 }}>3x+</span></div>
-                </div>
+            <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: 16, marginBottom: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><div style={{ width: 12, height: 12, borderRadius: 3, background: '#FFE066' }} /><span style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 600 }}>1x</span></div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><div style={{ width: 12, height: 12, borderRadius: 3, background: '#FF922B' }} /><span style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 600 }}>2x</span></div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><div style={{ width: 12, height: 12, borderRadius: 3, background: '#FA5252' }} /><span style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 600 }}>3x+</span></div>
+            </div>
 
-                <div style={{ textAlign: 'center', borderTop: '1px solid var(--border-light)', paddingTop: 12, marginTop: 4 }}>
-                  {(() => {
-                    let maxCount = 0;
-                    let maxMuscle = '';
-                    for (const [muscle, c] of Object.entries(muscleCounts)) {
-                      if (c > maxCount) { maxCount = c; maxMuscle = muscle; }
-                    }
-                    if (maxCount === 0) return <p style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 500 }}>No workouts logged in the last 7 days</p>;
-                    return (
-                      <p style={{ fontSize: 14, color: 'var(--text-primary)', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                        <span>Most trained this week: {maxMuscle}</span>
-                        <FlameIcon size={16} color="#ff8c32" />
-                      </p>
-                    );
-                  })()}
-                </div>
-              </div>
-            );
-          })()}
+            <div style={{ textAlign: 'center', borderTop: '1px solid var(--border-light)', paddingTop: 12, marginTop: 4 }}>
+              {(() => {
+                let maxCount = 0;
+                let maxMuscle = '';
+                for (const [muscle, c] of Object.entries(muscleCounts)) {
+                  if (c > maxCount) { maxCount = c; maxMuscle = muscle; }
+                }
+                if (maxCount === 0) return <p style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 500 }}>No workouts logged in the last 7 days</p>;
+                return (
+                  <p style={{ fontSize: 14, color: 'var(--text-primary)', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                    <span>Most trained this week: {maxMuscle}</span>
+                    <FlameIcon size={16} color="#ff8c32" />
+                  </p>
+                );
+              })()}
+            </div>
+          </div>
 
           {/* Personal Records */}
           <div style={{ marginBottom: 28 }}>

@@ -19,13 +19,13 @@ export default function BodyVisualizer3D({ muscleCounts }: BodyVisualizer3DProps
     const CYAN = 0x00e5ff;
     const DARK_BASE = 0x0a1628;
 
-    // Glow color based on training count
+    // Glow color based on training count — heat scale
     const getGlowColor = (muscleName: string): number => {
       const count = muscleCounts[muscleName] || 0;
       if (count === 0) return 0x1a3a4a;   // Dark teal (barely visible)
-      if (count === 1) return 0x22d3ee;   // Cyan glow
-      if (count === 2) return 0x84cc16;   // Lime glow
-      return 0xC8F135;                     // Bright lime (3+)
+      if (count === 1) return 0xFFE066;   // Yellow
+      if (count === 2) return 0xFF922B;   // Orange
+      return 0xFA5252;                     // Red hot (3+)
     };
 
     const getEmissiveIntensity = (muscleName: string): number => {
