@@ -63,6 +63,7 @@ function ProgressContent() {
   const [isSharing, setIsSharing] = useState(false);
   const [prImages, setPrImages] = useState<Record<string, string>>({});
   const [activeSection, setActiveSection] = useState<'exercises' | 'calories' | 'intensity'>('exercises');
+  const [bodyView, setBodyView] = useState<'front' | 'back'>('front');
 
   const muscleCounts = useMemo(() => {
     const EXERCISE_TO_MUSCLE: Record<string, string> = {
@@ -503,43 +504,6 @@ function ProgressContent() {
 
           {/* Muscle Group Heatmap */}
           {(() => {
-            const [bodyView, setBodyView] = useState<'front' | 'back'>('front');
-            const EXERCISE_TO_MUSCLE: Record<string, string> = {
-              'bench-press': 'Chest', 'incline-db-press': 'Chest', 'chest-fly': 'Chest', 'machine-chest-press': 'Chest', 'pec-deck': 'Chest', 'dips': 'Chest',
-              'overhead-press': 'Shoulders', 'lateral-raise': 'Shoulders', 'front-raise': 'Shoulders', 'tricep-pushdown': 'Triceps', 'skull-crushers': 'Triceps', 'close-grip-bench': 'Triceps',
-              'deadlift': 'Back', 'barbell-row': 'Back', 'pull-up': 'Back', 'lat-pulldown': 'Back', 'seated-cable-row': 'Back', 't-bar-row': 'Back', 'shrugs': 'Back', 'straight-arm-pulldown': 'Back',
-              'bicep-curl': 'Biceps', 'hammer-curl': 'Biceps', 'preacher-curl': 'Biceps', 'face-pull': 'Shoulders',
-              'squat': 'Quads', 'leg-press': 'Quads', 'front-squat': 'Quads', 'hack-squat': 'Quads', 'lunges': 'Quads', 'bulgarian-split-squat': 'Quads', 'leg-extension': 'Quads',
-              'romanian-deadlift': 'Hamstrings', 'leg-curl': 'Hamstrings', 'hip-thrust': 'Glutes', 'calf-raise': 'Calves',
-              'plank': 'Core', 'cable-crunch': 'Core', 'hanging-leg-raise': 'Core', 'ab-wheel': 'Core', 'russian-twist': 'Core', 'crunches': 'Core', 'back-extension': 'Core'
-            };
-
-            const muscleCounts = useMemo(() => {
-              const counts: Record<string, number> = {
-                Chest: 0, Back: 0, Shoulders: 0, Biceps: 0, Triceps: 0,
-                Quads: 0, Hamstrings: 0, Glutes: 0, Core: 0, Calves: 0
-              };
-              const now = new Date();
-              const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-              workouts.filter(w => new Date(w.startedAt) >= sevenDaysAgo).forEach(w => {
-                w.exercises.forEach(ex => {
-                  if (ex.sets.some(s => s.completed)) {
-                    const m = EXERCISE_TO_MUSCLE[ex.exerciseId];
-                    if (m in counts) counts[m]++;
-                  }
-                });
-              });
-              return counts;
-            }, [workouts]);
-
-            const getMuscleColor = (muscle: string) => {
-              const count = muscleCounts[muscle] || 0;
-              if (count === 0) return '#F1F5F9';
-              if (count === 1) return '#D9F99D';
-              if (count === 2) return '#A3E635';
-              return '#65A30D';
-            };
-
             return (
               <div className="card" style={{ padding: 18, marginBottom: 24 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
