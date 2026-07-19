@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSettings } from './SettingsContext';
-import { isStandalone } from '@/lib/pwa';
 
 export default function OnboardingGuard({ children }: { children: React.ReactNode }) {
   const { onboardingComplete } = useSettings();
@@ -12,24 +11,19 @@ export default function OnboardingGuard({ children }: { children: React.ReactNod
 
   useEffect(() => {
     setMounted(true);
-    // The app is PWA-only. In a regular browser tab, send users to the
-    // landing page instead of exposing the app shell.
-    if (!isStandalone()) {
-      router.replace('/');
-      return;
-    }
+    // First-run users still go through onboarding, but the app itself is
+    // viewable in a regular browser tab as well as the installed PWA.
     const obComplete = localStorage.getItem('onboarding_complete') === 'true' || onboardingComplete;
     if (!obComplete) {
       router.push('/onboarding');
     }
   }, [onboardingComplete, router]);
 
-  const allowed = typeof window !== 'undefined' && isStandalone();
   const obComplete = typeof window !== 'undefined'
     ? localStorage.getItem('onboarding_complete') === 'true' || onboardingComplete
     : onboardingComplete;
 
-  if (!mounted || !allowed || !obComplete) {
+  if (!mounted || !obComplete) {
     return null;
   }
 

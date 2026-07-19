@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSettings } from '@/components/SettingsContext';
-import { isStandalone } from '@/lib/pwa';
 
 const DumbbellIcon = ({ size = 80, color = 'currentColor' }: { size?: number, color?: string }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
@@ -64,11 +63,7 @@ export default function OnboardingPage() {
   const [allowed, setAllowed] = useState(false);
 
   useEffect(() => {
-    // Onboarding is part of the PWA-only flow. Browser visitors go to landing.
-    if (!isStandalone()) {
-      router.replace('/');
-      return;
-    }
+    // Onboarding is available both in the installed PWA and in a browser tab.
     setAllowed(true);
   }, [router]);
 
@@ -92,12 +87,22 @@ export default function OnboardingPage() {
   };
 
   const handleComplete = async () => {
-    if (name.trim() && gender) {
-      await updateSettings({ userName: name.trim(), userGender: gender, onboardingComplete: true });
-    } else {
-      await updateSettings({ onboardingComplete: true });
+    // Persist the completion flag synchronously first so the guards on the
+    // next route see it immediately, even if the async Dexie write is slow
+    // or fails.
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('onboarding_complete', 'true');
     }
-    router.push('/');
+    try {
+      if (name.trim() && gender) {
+        await updateSettings({ userName: name.trim(), userGender: gender, onboardingComplete: true });
+      } else {
+        await updateSettings({ onboardingComplete: true });
+      }
+    } catch (err) {
+      console.error('Failed to persist onboarding completion:', err);
+    }
+    router.replace('/app');
   };
 
   // Simple swipe gesture handlers

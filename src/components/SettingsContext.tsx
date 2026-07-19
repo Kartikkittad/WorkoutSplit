@@ -59,12 +59,22 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
           settingsMap[s.key] = s.value;
         }
 
-        const userName = settingsMap.user_name || settingsMap.name || settings.userName;
-        const userGender = settingsMap.user_gender || settings.userGender;
-        const onboardingComplete = settingsMap.onboarding_complete !== undefined
-          ? settingsMap.onboarding_complete
-          : settings.onboardingComplete;
-        const buddyName = settingsMap.buddy_name || '';
+        // This Dexie read is a snapshot taken at provider mount. If the user
+        // enters their name / completes onboarding before it resolves, the
+        // snapshot is stale. `updateSettings` writes those values to
+        // localStorage synchronously, so fall back to localStorage (not the
+        // mount-time defaults) to avoid clobbering fresh input.
+        const lsName = localStorage.getItem('user_name');
+        const lsGender = localStorage.getItem('user_gender') as 'male' | 'female' | null;
+        const lsComplete = localStorage.getItem('onboarding_complete') === 'true';
+        const lsBuddy = localStorage.getItem('buddy_name');
+
+        const userName = settingsMap.user_name || settingsMap.name || lsName || settings.userName;
+        const userGender = settingsMap.user_gender || lsGender || settings.userGender;
+        // Onboarding completion is monotonic — never downgrade a completed
+        // flag to false just because a stale snapshot lacks it.
+        const onboardingComplete = settingsMap.onboarding_complete === true || lsComplete;
+        const buddyName = settingsMap.buddy_name || lsBuddy || '';
 
         setSettings({
           userName,

@@ -5,9 +5,10 @@ import * as THREE from 'three';
 
 interface BodyVisualizer3DProps {
   muscleCounts: Record<string, number>;
+  height?: number;
 }
 
-export default function BodyVisualizer3D({ muscleCounts }: BodyVisualizer3DProps) {
+export default function BodyVisualizer3D({ muscleCounts, height: mountHeight = 280 }: BodyVisualizer3DProps) {
   const mountRef = useRef<HTMLDivElement>(null);
   const [webglError, setWebglError] = useState(false);
 
@@ -15,29 +16,20 @@ export default function BodyVisualizer3D({ muscleCounts }: BodyVisualizer3DProps
     const container = mountRef.current;
     if (!container) return;
 
-    // Holographic color palette
-    const CYAN = 0x00e5ff;
-    const DARK_BASE = 0x0a1628;
+    // Anatomy-style palette — grey body, heat-scale muscles
+    const NEUTRAL = 0xd2d3d6;   // body / untrained (light grey silhouette)
+    const SHADOW = 0xc2c3c7;    // slightly darker neutral for depth parts
 
-    // Glow color based on training count
-    const getGlowColor = (muscleName: string): number => {
+    const getMuscleColor = (muscleName: string): number => {
       const count = muscleCounts[muscleName] || 0;
-      if (count === 0) return 0x1a3a4a;   // Dark teal (barely visible)
-      if (count === 1) return 0x22d3ee;   // Cyan glow
-      if (count === 2) return 0x84cc16;   // Lime glow
-      return 0xC8F135;                     // Bright lime (3+)
-    };
-
-    const getEmissiveIntensity = (muscleName: string): number => {
-      const count = muscleCounts[muscleName] || 0;
-      if (count === 0) return 0.15;
-      if (count === 1) return 0.6;
-      if (count === 2) return 0.85;
-      return 1.2;
+      if (count === 0) return NEUTRAL;    // untrained = same grey as body
+      if (count === 1) return 0xffd43b;   // yellow
+      if (count === 2) return 0xff922b;   // orange
+      return 0xfa5252;                     // red hot (3+)
     };
 
     let width = container.clientWidth || 300;
-    let height = container.clientHeight || 280;
+    let height = container.clientHeight || mountHeight;
 
     let scene: THREE.Scene;
     let camera: THREE.PerspectiveCamera;
@@ -49,36 +41,26 @@ export default function BodyVisualizer3D({ muscleCounts }: BodyVisualizer3DProps
       camera = new THREE.PerspectiveCamera(36, width / height, 0.1, 100);
       camera.position.set(0, 0, 2.4);
 
-      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       renderer.setSize(width, height);
-      renderer.setClearColor(0x000000, 0);
-      renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = 1.2;
+      renderer.setClearColor(0xffffff, 0); // transparent — white container shows through
       container.appendChild(renderer.domElement);
     } catch {
       setWebglError(true);
       return;
     }
 
-    // Lighting — subtle ambient + point lights for holographic glow
-    const ambientLight = new THREE.AmbientLight(0x112233, 0.8);
-    scene.add(ambientLight);
+    // Bright studio lighting for a white background
+    scene.add(new THREE.AmbientLight(0xffffff, 0.75));
 
-    // Cyan point light from front
-    const frontGlow = new THREE.PointLight(CYAN, 1.2, 5);
-    frontGlow.position.set(0, 0.5, 2);
-    scene.add(frontGlow);
+    const keyLight = new THREE.DirectionalLight(0xffffff, 1.1);
+    keyLight.position.set(2, 3, 4);
+    scene.add(keyLight);
 
-    // Subtle back rim light
-    const rimLight = new THREE.PointLight(0x0088aa, 0.8, 5);
-    rimLight.position.set(0, 1, -2);
-    scene.add(rimLight);
-
-    // Bottom glow
-    const bottomGlow = new THREE.PointLight(CYAN, 0.4, 4);
-    bottomGlow.position.set(0, -1.5, 1);
-    scene.add(bottomGlow);
+    const fillLight = new THREE.DirectionalLight(0xffffff, 0.45);
+    fillLight.position.set(-3, 1, -3);
+    scene.add(fillLight);
 
     const mannequin = new THREE.Group();
     scene.add(mannequin);
@@ -86,322 +68,212 @@ export default function BodyVisualizer3D({ muscleCounts }: BodyVisualizer3DProps
     const geometries: THREE.BufferGeometry[] = [];
     const materials: THREE.Material[] = [];
 
-    // Create holographic muscle material
-    const createMuscleMaterial = (muscleName: string | null) => {
-      const glowColor = muscleName ? getGlowColor(muscleName) : 0x1a3a4a;
-      const intensity = muscleName ? getEmissiveIntensity(muscleName) : 0.1;
-      
-      return new THREE.MeshPhongMaterial({
-        color: DARK_BASE,
-        emissive: glowColor,
-        emissiveIntensity: intensity,
-        shininess: 60,
-        specular: 0x00ccff,
-        transparent: true,
-        opacity: 0.55,
-        side: THREE.DoubleSide,
+    // Solid matte material — trained muscles get a slight glow to pop
+    const createMaterial = (muscleName: string | null, baseColor?: number) => {
+      const color = muscleName ? getMuscleColor(muscleName) : (baseColor ?? NEUTRAL);
+      const trained = muscleName ? (muscleCounts[muscleName] || 0) > 0 : false;
+      return new THREE.MeshStandardMaterial({
+        color,
+        roughness: 0.55,
+        metalness: 0.05,
+        emissive: trained ? color : 0x000000,
+        emissiveIntensity: trained ? 0.18 : 0,
       });
     };
 
-    // Create wireframe overlay material
-    const createWireMaterial = (muscleName: string | null) => {
-      const count = muscleName ? (muscleCounts[muscleName] || 0) : 0;
-      const wireColor = count > 0 ? getGlowColor(muscleName!) : CYAN;
-      const wireOpacity = count > 0 ? 0.7 : 0.2;
-      
-      return new THREE.MeshBasicMaterial({
-        color: wireColor,
-        wireframe: true,
-        transparent: true,
-        opacity: wireOpacity,
-      });
-    };
-
-    // Create a mesh with wireframe overlay
-    const createBody = (geom: THREE.BufferGeometry, muscleName: string | null) => {
-      const solidMat = createMuscleMaterial(muscleName);
-      const wireMat = createWireMaterial(muscleName);
-      
+    const createPart = (geom: THREE.BufferGeometry, muscleName: string | null, baseColor?: number) => {
+      const mat = createMaterial(muscleName, baseColor);
       geometries.push(geom);
-      materials.push(solidMat, wireMat);
-
-      const solidMesh = new THREE.Mesh(geom, solidMat);
-      const wireMesh = new THREE.Mesh(geom, wireMat);
-
-      const group = new THREE.Group();
-      group.add(solidMesh);
-      group.add(wireMesh);
-      return group;
+      materials.push(mat);
+      return new THREE.Mesh(geom, mat);
     };
 
-    // === BODY CONSTRUCTION ===
+    // === BODY CONSTRUCTION — organic capsules & spheres ===
+    // Torso is elliptical (flattened front-to-back) so muscle overlays can
+    // hug the silhouette instead of poking out of a round tube.
 
     // Head
-    const headGeom = new THREE.SphereGeometry(0.1, 20, 20);
-    const head = createBody(headGeom, null);
-    head.scale.set(1, 1.25, 1);
-    head.position.set(0, 0.78, 0);
+    const head = createPart(new THREE.SphereGeometry(0.078, 24, 24), null, SHADOW);
+    head.scale.set(1, 1.2, 1.05);
+    head.position.set(0, 0.775, 0);
     mannequin.add(head);
 
     // Neck
-    const neckGeom = new THREE.CylinderGeometry(0.038, 0.044, 0.07, 12);
-    const neck = createBody(neckGeom, null);
+    const neck = createPart(new THREE.CapsuleGeometry(0.035, 0.06, 8, 16), null, SHADOW);
     neck.position.set(0, 0.66, 0);
     mannequin.add(neck);
 
-    // Trapezius
-    const trapGeom = new THREE.CylinderGeometry(0.018, 0.032, 0.11, 10);
-    
-    const trapL = createBody(trapGeom, 'Back');
-    trapL.position.set(-0.06, 0.62, -0.01);
-    trapL.rotation.z = -0.55;
-    mannequin.add(trapL);
+    // Trapezius — sloping from neck to shoulders (visible from top/back)
+    const trapGeom = new THREE.SphereGeometry(0.045, 18, 18);
+    ([-1, 1] as const).forEach(side => {
+      const trap = createPart(trapGeom.clone(), 'Back');
+      trap.scale.set(1.6, 0.5, 0.7);
+      trap.position.set(side * 0.07, 0.615, -0.01);
+      trap.rotation.z = side * -0.28;
+      mannequin.add(trap);
+    });
 
-    const trapR = createBody(trapGeom, 'Back');
-    trapR.position.set(0.06, 0.62, -0.01);
-    trapR.rotation.z = 0.55;
-    mannequin.add(trapR);
-
-    // Chest (Left & Right Pecs)
-    const pecGeom = new THREE.BoxGeometry(0.10, 0.11, 0.04);
-    
-    const pecL = createBody(pecGeom, 'Chest');
-    pecL.position.set(-0.055, 0.49, 0.048);
-    pecL.rotation.set(0.04, 0.06, 0.02);
-    mannequin.add(pecL);
-
-    const pecR = createBody(pecGeom, 'Chest');
-    pecR.position.set(0.055, 0.49, 0.048);
-    pecR.rotation.set(0.04, -0.06, -0.02);
-    mannequin.add(pecR);
-
-    // Torso core cylinder
-    const torsoGeom = new THREE.CylinderGeometry(0.072, 0.076, 0.35, 14);
-    const torso = createBody(torsoGeom, null);
-    torso.position.set(0, 0.38, 0);
+    // Torso — tapered chest to waist, flattened depth
+    const torso = createPart(new THREE.CylinderGeometry(0.125, 0.095, 0.40, 28), null);
+    torso.scale.z = 0.55;
+    torso.position.set(0, 0.42, 0);
     mannequin.add(torso);
 
-    // Back (Lats)
-    const latGeom = new THREE.CylinderGeometry(0.046, 0.018, 0.21, 10);
-    
-    const latL = createBody(latGeom, 'Back');
-    latL.position.set(-0.08, 0.45, -0.04);
-    latL.rotation.z = 0.12;
-    mannequin.add(latL);
-
-    const latR = createBody(latGeom, 'Back');
-    latR.position.set(0.08, 0.45, -0.04);
-    latR.rotation.z = -0.12;
-    mannequin.add(latR);
-
-    // Shoulders (Deltoids)
-    const deltGeom = new THREE.SphereGeometry(0.06, 14, 14);
-    
-    const deltL = createBody(deltGeom, 'Shoulders');
-    deltL.scale.set(1.05, 1.35, 1.1);
-    deltL.position.set(-0.15, 0.51, 0);
-    mannequin.add(deltL);
-
-    const deltR = createBody(deltGeom, 'Shoulders');
-    deltR.scale.set(1.05, 1.35, 1.1);
-    deltR.position.set(0.15, 0.51, 0);
-    mannequin.add(deltR);
-
-    // Biceps
-    const bicepGeom = new THREE.CylinderGeometry(0.036, 0.03, 0.19, 10);
-    
-    const bicepL = createBody(bicepGeom, 'Biceps');
-    bicepL.position.set(-0.16, 0.34, 0.014);
-    mannequin.add(bicepL);
-
-    const bicepR = createBody(bicepGeom, 'Biceps');
-    bicepR.position.set(0.16, 0.34, 0.014);
-    mannequin.add(bicepR);
-
-    // Triceps
-    const tricepGeom = new THREE.CylinderGeometry(0.036, 0.03, 0.19, 10);
-
-    const tricepL = createBody(tricepGeom, 'Triceps');
-    tricepL.position.set(-0.16, 0.34, -0.014);
-    mannequin.add(tricepL);
-
-    const tricepR = createBody(tricepGeom, 'Triceps');
-    tricepR.position.set(0.16, 0.34, -0.014);
-    mannequin.add(tricepR);
-
-    // Forearms
-    const forearmGeom = new THREE.CylinderGeometry(0.03, 0.022, 0.19, 10);
-    
-    const forearmL = createBody(forearmGeom, null);
-    forearmL.position.set(-0.16, 0.15, 0);
-    mannequin.add(forearmL);
-
-    const forearmR = createBody(forearmGeom, null);
-    forearmR.position.set(0.16, 0.15, 0);
-    mannequin.add(forearmR);
-
-    // Hands
-    const handGeom = new THREE.SphereGeometry(0.022, 10, 10);
-    
-    const handL = createBody(handGeom, null);
-    handL.scale.set(1, 1.3, 0.6);
-    handL.position.set(-0.16, 0.025, 0);
-    mannequin.add(handL);
-
-    const handR = createBody(handGeom, null);
-    handR.scale.set(1, 1.3, 0.6);
-    handR.position.set(0.16, 0.025, 0);
-    mannequin.add(handR);
-
-    // Abs (Six Pack segments)
-    const abGeom = new THREE.BoxGeometry(0.042, 0.038, 0.014);
-    for (let r = 0; r < 3; r++) {
-      const y = 0.36 - r * 0.048;
-      
-      const abL = createBody(abGeom, 'Core');
-      abL.position.set(-0.03, y, 0.063);
-      mannequin.add(abL);
-
-      const abR = createBody(abGeom, 'Core');
-      abR.position.set(0.03, y, 0.063);
-      mannequin.add(abR);
-    }
-
-    // Obliques
-    const obliqueGeom = new THREE.CylinderGeometry(0.032, 0.026, 0.17, 10);
-    
-    const obliqueL = createBody(obliqueGeom, 'Core');
-    obliqueL.position.set(-0.076, 0.28, 0.03);
-    mannequin.add(obliqueL);
-
-    const obliqueR = createBody(obliqueGeom, 'Core');
-    obliqueR.position.set(0.076, 0.28, 0.03);
-    mannequin.add(obliqueR);
-
-    // Lower Back
-    const lowerBackGeom = new THREE.BoxGeometry(0.13, 0.15, 0.065);
-    const lowerBack = createBody(lowerBackGeom, 'Back');
-    lowerBack.position.set(0, 0.27, -0.042);
-    mannequin.add(lowerBack);
-
-    // Pelvis
-    const pelvisGeom = new THREE.BoxGeometry(0.19, 0.09, 0.085);
-    const pelvis = createBody(pelvisGeom, null);
-    pelvis.position.set(0, 0.13, 0.01);
+    // Pelvis / hips
+    const pelvis = createPart(new THREE.CylinderGeometry(0.095, 0.115, 0.16, 28), null);
+    pelvis.scale.z = 0.6;
+    pelvis.position.set(0, 0.15, 0);
     mannequin.add(pelvis);
 
-    // Glutes
-    const gluteGeom = new THREE.SphereGeometry(0.07, 14, 14);
-    
-    const gluteL = createBody(gluteGeom, 'Glutes');
-    gluteL.scale.set(1.1, 1, 1.2);
-    gluteL.position.set(-0.062, 0.11, -0.045);
-    mannequin.add(gluteL);
+    // Pectorals — wide flat plates on the chest
+    const pecGeom = new THREE.SphereGeometry(0.075, 20, 20);
+    ([-1, 1] as const).forEach(side => {
+      const pec = createPart(pecGeom.clone(), 'Chest');
+      pec.scale.set(1.05, 0.55, 0.32);
+      pec.position.set(side * 0.05, 0.545, 0.055);
+      mannequin.add(pec);
+    });
 
-    const gluteR = createBody(gluteGeom, 'Glutes');
-    gluteR.scale.set(1.1, 1, 1.2);
-    gluteR.position.set(0.062, 0.11, -0.045);
-    mannequin.add(gluteR);
+    // Deltoids — cap the shoulders, blending into the arms
+    const deltGeom = new THREE.SphereGeometry(0.055, 20, 20);
+    ([-1, 1] as const).forEach(side => {
+      const delt = createPart(deltGeom.clone(), 'Shoulders');
+      delt.scale.set(1.1, 1.2, 0.9);
+      delt.position.set(side * 0.165, 0.555, 0);
+      mannequin.add(delt);
+    });
 
-    // Quads
-    const quadGeom = new THREE.CylinderGeometry(0.05, 0.04, 0.33, 12);
-    const quadSweepGeom = new THREE.CylinderGeometry(0.032, 0.018, 0.25, 10);
+    // Upper arms — bicep (front) + tricep (back) capsules overlapping
+    const upperArmGeom = new THREE.CapsuleGeometry(0.032, 0.12, 8, 16);
+    ([-1, 1] as const).forEach(side => {
+      const bicep = createPart(upperArmGeom.clone(), 'Biceps');
+      bicep.position.set(side * 0.168, 0.41, 0.012);
+      mannequin.add(bicep);
 
-    const quadL = createBody(quadGeom, 'Quads');
-    quadL.position.set(-0.068, -0.1, 0.018);
-    mannequin.add(quadL);
+      const tricep = createPart(upperArmGeom.clone(), 'Triceps');
+      tricep.position.set(side * 0.168, 0.41, -0.012);
+      mannequin.add(tricep);
+    });
 
-    const sweepL = createBody(quadSweepGeom, 'Quads');
-    sweepL.position.set(-0.105, -0.07, 0.018);
-    sweepL.rotation.z = 0.07;
-    mannequin.add(sweepL);
+    // Forearms
+    const forearmGeom = new THREE.CapsuleGeometry(0.026, 0.13, 8, 16);
+    ([-1, 1] as const).forEach(side => {
+      const forearm = createPart(forearmGeom.clone(), null);
+      forearm.position.set(side * 0.17, 0.25, 0.004);
+      mannequin.add(forearm);
+    });
 
-    const quadR = createBody(quadGeom, 'Quads');
-    quadR.position.set(0.068, -0.1, 0.018);
-    mannequin.add(quadR);
+    // Hands
+    const handGeom = new THREE.SphereGeometry(0.022, 14, 14);
+    ([-1, 1] as const).forEach(side => {
+      const hand = createPart(handGeom.clone(), null, SHADOW);
+      hand.scale.set(1, 1.35, 0.6);
+      hand.position.set(side * 0.17, 0.14, 0);
+      mannequin.add(hand);
+    });
 
-    const sweepR = createBody(quadSweepGeom, 'Quads');
-    sweepR.position.set(0.105, -0.07, 0.018);
-    sweepR.rotation.z = -0.07;
-    mannequin.add(sweepR);
+    // Abs — 3x2 shallow segments on the stomach
+    const abGeom = new THREE.SphereGeometry(0.024, 14, 14);
+    for (let row = 0; row < 3; row++) {
+      ([-1, 1] as const).forEach(side => {
+        const ab = createPart(abGeom.clone(), 'Core');
+        ab.scale.set(1.3, 1, 0.45);
+        ab.position.set(side * 0.027, 0.40 - row * 0.048, 0.058);
+        mannequin.add(ab);
+      });
+    }
 
-    // Hamstrings
-    const hamGeom = new THREE.CylinderGeometry(0.05, 0.04, 0.33, 12);
+    // Obliques — subtle side bands
+    const obliqueGeom = new THREE.CapsuleGeometry(0.02, 0.1, 8, 14);
+    ([-1, 1] as const).forEach(side => {
+      const oblique = createPart(obliqueGeom.clone(), 'Core');
+      oblique.position.set(side * 0.075, 0.34, 0.048);
+      oblique.rotation.z = side * -0.05;
+      mannequin.add(oblique);
+    });
 
-    const hamL = createBody(hamGeom, 'Hamstrings');
-    hamL.position.set(-0.068, -0.1, -0.018);
-    mannequin.add(hamL);
+    // Lats — back wings, visible from behind
+    const latGeom = new THREE.SphereGeometry(0.06, 18, 18);
+    ([-1, 1] as const).forEach(side => {
+      const lat = createPart(latGeom.clone(), 'Back');
+      lat.scale.set(0.7, 1.6, 0.5);
+      lat.position.set(side * 0.072, 0.46, -0.048);
+      mannequin.add(lat);
+    });
 
-    const hamR = createBody(hamGeom, 'Hamstrings');
-    hamR.position.set(0.068, -0.1, -0.018);
-    mannequin.add(hamR);
+    // Lower back
+    const lowerBack = createPart(new THREE.SphereGeometry(0.055, 18, 18), 'Back');
+    lowerBack.scale.set(1.4, 1, 0.5);
+    lowerBack.position.set(0, 0.30, -0.05);
+    mannequin.add(lowerBack);
+
+    // Glutes — tucked behind the pelvis
+    const gluteGeom = new THREE.SphereGeometry(0.06, 18, 18);
+    ([-1, 1] as const).forEach(side => {
+      const glute = createPart(gluteGeom.clone(), 'Glutes');
+      glute.scale.set(0.85, 0.85, 1);
+      glute.position.set(side * 0.045, 0.135, -0.06);
+      mannequin.add(glute);
+    });
+
+    // Quads (front of thigh) + outer sweep
+    const quadGeom = new THREE.CapsuleGeometry(0.045, 0.24, 8, 18);
+    const sweepGeom = new THREE.CapsuleGeometry(0.026, 0.16, 8, 14);
+    ([-1, 1] as const).forEach(side => {
+      const quad = createPart(quadGeom.clone(), 'Quads');
+      quad.position.set(side * 0.062, -0.04, 0.012);
+      mannequin.add(quad);
+
+      const sweep = createPart(sweepGeom.clone(), 'Quads');
+      sweep.position.set(side * 0.095, -0.02, 0.008);
+      sweep.rotation.z = side * -0.06;
+      mannequin.add(sweep);
+    });
+
+    // Hamstrings (back of thigh)
+    const hamGeom = new THREE.CapsuleGeometry(0.042, 0.22, 8, 18);
+    ([-1, 1] as const).forEach(side => {
+      const ham = createPart(hamGeom.clone(), 'Hamstrings');
+      ham.position.set(side * 0.062, -0.05, -0.025);
+      mannequin.add(ham);
+    });
 
     // Knees
-    const kneeGeom = new THREE.SphereGeometry(0.032, 10, 10);
-    const kneeL = createBody(kneeGeom, null);
-    kneeL.position.set(-0.068, -0.28, 0.004);
-    mannequin.add(kneeL);
+    const kneeGeom = new THREE.SphereGeometry(0.032, 14, 14);
+    ([-1, 1] as const).forEach(side => {
+      const knee = createPart(kneeGeom.clone(), null);
+      knee.position.set(side * 0.062, -0.225, 0.005);
+      mannequin.add(knee);
+    });
 
-    const kneeR = createBody(kneeGeom, null);
-    kneeR.position.set(0.068, -0.28, 0.004);
-    mannequin.add(kneeR);
-
-    // Calves (Gastrocnemius bulge + taper)
-    const calfBulgeGeom = new THREE.SphereGeometry(0.043, 12, 12);
-    const calfTaperGeom = new THREE.CylinderGeometry(0.036, 0.02, 0.30, 10);
-
-    const calfBulgeL = createBody(calfBulgeGeom, 'Calves');
-    calfBulgeL.scale.set(1, 1.35, 1);
-    calfBulgeL.position.set(-0.068, -0.37, -0.018);
-    mannequin.add(calfBulgeL);
-
-    const calfTaperL = createBody(calfTaperGeom, 'Calves');
-    calfTaperL.position.set(-0.068, -0.45, -0.004);
-    mannequin.add(calfTaperL);
-
-    const calfBulgeR = createBody(calfBulgeGeom, 'Calves');
-    calfBulgeR.scale.set(1, 1.35, 1);
-    calfBulgeR.position.set(0.068, -0.37, -0.018);
-    mannequin.add(calfBulgeR);
-
-    const calfTaperR = createBody(calfTaperGeom, 'Calves');
-    calfTaperR.position.set(0.068, -0.45, -0.004);
-    mannequin.add(calfTaperR);
+    // Calves — bulge behind shin
+    const calfGeom = new THREE.SphereGeometry(0.038, 16, 16);
+    ([-1, 1] as const).forEach(side => {
+      const calf = createPart(calfGeom.clone(), 'Calves');
+      calf.scale.set(1, 1.6, 0.9);
+      calf.position.set(side * 0.062, -0.32, -0.018);
+      mannequin.add(calf);
+    });
 
     // Shins
-    const shinGeom = new THREE.CylinderGeometry(0.034, 0.02, 0.30, 10);
-    
-    const shinL = createBody(shinGeom, null);
-    shinL.position.set(-0.068, -0.45, 0.014);
-    mannequin.add(shinL);
-
-    const shinR = createBody(shinGeom, null);
-    shinR.position.set(0.068, -0.45, 0.014);
-    mannequin.add(shinR);
-
-    // Ankles
-    const ankleGeom = new THREE.SphereGeometry(0.02, 10, 10);
-    const ankleL = createBody(ankleGeom, null);
-    ankleL.position.set(-0.068, -0.61, 0);
-    mannequin.add(ankleL);
-
-    const ankleR = createBody(ankleGeom, null);
-    ankleR.position.set(0.068, -0.61, 0);
-    mannequin.add(ankleR);
+    const shinGeom = new THREE.CapsuleGeometry(0.024, 0.22, 8, 14);
+    ([-1, 1] as const).forEach(side => {
+      const shin = createPart(shinGeom.clone(), null);
+      shin.position.set(side * 0.062, -0.39, 0.006);
+      mannequin.add(shin);
+    });
 
     // Feet
-    const footGeom = new THREE.BoxGeometry(0.046, 0.03, 0.11);
-    
-    const footL = createBody(footGeom, null);
-    footL.position.set(-0.068, -0.645, 0.024);
-    mannequin.add(footL);
+    const footGeom = new THREE.SphereGeometry(0.028, 14, 14);
+    ([-1, 1] as const).forEach(side => {
+      const foot = createPart(footGeom.clone(), null, SHADOW);
+      foot.scale.set(1.2, 0.5, 2.2);
+      foot.position.set(side * 0.062, -0.55, 0.03);
+      mannequin.add(foot);
+    });
 
-    const footR = createBody(footGeom, null);
-    footR.position.set(0.068, -0.645, 0.024);
-    mannequin.add(footR);
-
-    // Center
-    mannequin.position.y = -0.1;
+    // Center vertically
+    mannequin.position.y = -0.09;
 
     // ─── ROTATION INTERACTION ───
     let isDragging = false;
@@ -445,17 +317,9 @@ export default function BodyVisualizer3D({ muscleCounts }: BodyVisualizer3DProps
 
     mannequin.rotation.y = 0.2;
 
-    // Pulse animation for glow
-    let pulseTime = 0;
-
     const animate = () => {
       animationFrameId = requestAnimationFrame(animate);
-      
-      pulseTime += 0.02;
-      
-      // Subtle pulse on the front glow light
-      frontGlow.intensity = 1.2 + Math.sin(pulseTime) * 0.15;
-      
+
       if (!isDragging) {
         mannequin.rotation.y += 0.005;
       }
@@ -507,15 +371,15 @@ export default function BodyVisualizer3D({ muscleCounts }: BodyVisualizer3DProps
   }
 
   return (
-    <div 
-      ref={mountRef} 
-      style={{ 
-        width: '100%', 
-        height: '280px', 
-        position: 'relative', 
+    <div
+      ref={mountRef}
+      style={{
+        width: '100%',
+        height: `${mountHeight}px`,
+        position: 'relative',
         cursor: 'grab',
         touchAction: 'none',
-      }} 
+      }}
     />
   );
 }
