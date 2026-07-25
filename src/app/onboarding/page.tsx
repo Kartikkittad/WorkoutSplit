@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSettings } from '@/components/SettingsContext';
+import LogoIcon from '@/components/LogoIcon';
 
 const DumbbellIcon = ({ size = 80, color = 'currentColor' }: { size?: number, color?: string }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
@@ -186,11 +187,7 @@ export default function OnboardingPage() {
         >
           <div style={{ textAlign: 'center', marginBottom: 24 }}>
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
-              <img 
-                src={theme === 'dark' ? '/logo-dark.png' : '/logo.png'} 
-                alt="WorkoutSplit Logo" 
-                style={{ width: 80, height: 80, objectFit: 'contain' }} 
-              />
+              <LogoIcon size={80} />
             </div>
             <h1 style={{ fontSize: 28, fontWeight: 800, fontFamily: 'var(--font-display)', marginBottom: 8, color: 'var(--text-primary)', lineHeight: 1.2 }}>
               Welcome to WorkoutSplit
