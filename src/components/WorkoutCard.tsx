@@ -44,7 +44,7 @@ export default function WorkoutCard({ workout, onDelete }: WorkoutCardProps) {
   if (intensity) {
     if (intensity <= 2) borderLeftColor = '4px solid #64748B';
     else if (intensity === 3) borderLeftColor = '4px solid #3B82F6';
-    else if (intensity === 4) borderLeftColor = '4px solid #C8F135';
+    else if (intensity === 4) borderLeftColor = '4px solid #FFE100';
     else if (intensity === 5) borderLeftColor = '4px solid #F97316';
   }
 
@@ -95,8 +95,8 @@ export default function WorkoutCard({ workout, onDelete }: WorkoutCardProps) {
         {/* Summary chips */}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <span style={{
-            fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 9999,
-            background: 'rgba(200,241,53,0.15)', color: 'var(--text-primary)',
+            fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 9999,
+            background: '#FFE100', color: '#111111', border: '1px solid #111111',
           }}>
             {exercises.length} exercise{exercises.length !== 1 ? 's' : ''}
           </span>

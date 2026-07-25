@@ -58,7 +58,7 @@ export default function OnboardingPage() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [name, setName] = useState('');
   const [gender, setGender] = useState<'male' | 'female' | null>(null);
-  const { updateSettings } = useSettings();
+  const { updateSettings, theme } = useSettings();
   const router = useRouter();
   const [allowed, setAllowed] = useState(false);
 
@@ -131,7 +131,8 @@ export default function OnboardingPage() {
     <div 
       style={{
         minHeight: '100vh',
-        backgroundColor: '#FFFFFF',
+        backgroundColor: 'var(--bg)',
+        color: 'var(--text-primary)',
         display: 'flex',
         flexDirection: 'column',
         position: 'relative',
@@ -184,8 +185,15 @@ export default function OnboardingPage() {
           }}
         >
           <div style={{ textAlign: 'center', marginBottom: 24 }}>
-            <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 8, color: 'var(--text-primary)', lineHeight: 1.2 }}>
-              Welcome to LiftPulse
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+              <img 
+                src={theme === 'dark' ? '/logo-dark.png' : '/logo.png'} 
+                alt="WorkoutSplit Logo" 
+                style={{ width: 80, height: 80, objectFit: 'contain' }} 
+              />
+            </div>
+            <h1 style={{ fontSize: 28, fontWeight: 800, fontFamily: 'var(--font-display)', marginBottom: 8, color: 'var(--text-primary)', lineHeight: 1.2 }}>
+              Welcome to WorkoutSplit
             </h1>
             <p style={{ fontSize: 16, color: 'var(--text-secondary)' }}>
               Let's set up your profile
@@ -194,7 +202,7 @@ export default function OnboardingPage() {
 
           {/* Name input */}
           <div style={{ marginBottom: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <label style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
+            <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
               What should we call you?
             </label>
             <input
@@ -202,22 +210,13 @@ export default function OnboardingPage() {
               value={name}
               onChange={e => setName(e.target.value)}
               placeholder="Your name"
-              style={{
-                width: '100%',
-                padding: '16px',
-                borderRadius: '16px',
-                border: '1px solid var(--border-light)',
-                backgroundColor: 'var(--input-bg)',
-                fontSize: 16,
-                outline: 'none',
-                fontFamily: 'inherit',
-              }}
+              className="input-field"
             />
           </div>
 
           {/* Gender selection */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
-            <label style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
+            <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
               I am
             </label>
             <div style={{ display: 'flex', gap: 16 }}>
@@ -228,9 +227,10 @@ export default function OnboardingPage() {
                 style={{
                   flex: 1,
                   height: 110,
-                  borderRadius: 24,
-                  border: gender === 'male' ? '2px solid #C8F135' : '2px solid #E2E8F0',
-                  backgroundColor: gender === 'male' ? 'rgba(200, 241, 53, 0.1)' : 'var(--card-bg)',
+                  borderRadius: 20,
+                  border: gender === 'male' ? '2px solid #111111' : '2px solid var(--border-light)',
+                  backgroundColor: gender === 'male' ? '#FFE100' : 'var(--card-bg)',
+                  boxShadow: gender === 'male' ? '3px 3px 0 #111111' : 'none',
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
@@ -240,8 +240,8 @@ export default function OnboardingPage() {
                   transition: 'all 0.2s',
                 }}
               >
-                <MaleIcon size={36} color={gender === 'male' ? 'var(--text-primary)' : 'var(--text-secondary)'} />
-                <span style={{ fontWeight: 700, fontSize: 16, color: 'var(--text-primary)' }}>Male</span>
+                <MaleIcon size={36} color={gender === 'male' ? '#111111' : 'var(--text-primary)'} />
+                <span style={{ fontWeight: 800, fontSize: 16, color: gender === 'male' ? '#111111' : 'var(--text-primary)' }}>Male</span>
               </button>
 
               {/* Female Card */}
@@ -251,9 +251,10 @@ export default function OnboardingPage() {
                 style={{
                   flex: 1,
                   height: 110,
-                  borderRadius: 24,
-                  border: gender === 'female' ? '2px solid #C8F135' : '2px solid #E2E8F0',
-                  backgroundColor: gender === 'female' ? 'rgba(200, 241, 53, 0.1)' : 'var(--card-bg)',
+                  borderRadius: 20,
+                  border: gender === 'female' ? '2px solid #111111' : '2px solid var(--border-light)',
+                  backgroundColor: gender === 'female' ? '#FFE100' : 'var(--card-bg)',
+                  boxShadow: gender === 'female' ? '3px 3px 0 #111111' : 'none',
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
@@ -263,8 +264,8 @@ export default function OnboardingPage() {
                   transition: 'all 0.2s',
                 }}
               >
-                <FemaleIcon size={36} color={gender === 'female' ? 'var(--text-primary)' : 'var(--text-secondary)'} />
-                <span style={{ fontWeight: 700, fontSize: 16, color: 'var(--text-primary)' }}>Female</span>
+                <FemaleIcon size={36} color={gender === 'female' ? '#111111' : 'var(--text-primary)'} />
+                <span style={{ fontWeight: 800, fontSize: 16, color: gender === 'female' ? '#111111' : 'var(--text-primary)' }}>Female</span>
               </button>
             </div>
           </div>
@@ -285,16 +286,17 @@ export default function OnboardingPage() {
             }}
           >
             <div style={{ 
-              marginBottom: 40, 
-              color: 'var(--lime)',
-              filter: 'drop-shadow(0 8px 32px rgba(200, 241, 53, 0.6))'
+              marginBottom: 30, 
+              width: 100, height: 100, borderRadius: 24,
+              background: '#FFE100', border: '2px solid #111111', boxShadow: '4px 4px 0 #111111',
+              display: 'grid', placeItems: 'center', color: '#111111'
             }}>
               {slide.icon}
             </div>
-            <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 16, color: 'var(--text-primary)', lineHeight: 1.2 }}>
+            <h1 style={{ fontSize: 28, fontWeight: 800, fontFamily: 'var(--font-display)', marginBottom: 16, color: 'var(--text-primary)', lineHeight: 1.2 }}>
               {slide.heading}
             </h1>
-            <p style={{ fontSize: 18, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+            <p style={{ fontSize: 17, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
               {slide.subtext}
             </p>
           </div>
@@ -302,18 +304,19 @@ export default function OnboardingPage() {
       </div>
 
       {/* Bottom Controls */}
-      <div style={{ padding: '32px 24px calc(24px + env(safe-area-inset-bottom))', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 32 }}>
+      <div style={{ padding: '32px 24px calc(24px + env(safe-area-inset-bottom))', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 24 }}>
         {/* Dots */}
         <div style={{ display: 'flex', gap: 8 }}>
           {Array.from({ length: totalSlides }).map((_, i) => (
             <div
               key={i}
               style={{
-                width: 8,
+                width: i === currentSlide ? 24 : 8,
                 height: 8,
-                borderRadius: '50%',
-                backgroundColor: i === currentSlide ? 'var(--lime)' : '#CBD5E1',
-                transition: 'background-color 0.3s',
+                borderRadius: 999,
+                border: '1.5px solid var(--border-light)',
+                backgroundColor: i === currentSlide ? '#FFE100' : 'var(--input-bg)',
+                transition: 'all 0.3s',
               }}
             />
           ))}
@@ -328,15 +331,15 @@ export default function OnboardingPage() {
               style={{
                 width: '100%',
                 height: '100%',
-                backgroundColor: (name.trim() && gender) ? 'var(--lime)' : '#CBD5E1',
-                color: 'var(--text-primary)',
-                fontWeight: 700,
+                backgroundColor: (name.trim() && gender) ? '#FFE100' : 'var(--input-bg)',
+                color: (name.trim() && gender) ? '#111111' : 'var(--text-secondary)',
+                fontWeight: 800,
                 fontSize: 18,
                 fontFamily: 'inherit',
-                border: 'none',
+                border: (name.trim() && gender) ? '2px solid #111111' : '2px solid var(--border-light)',
                 borderRadius: 9999,
                 cursor: (name.trim() && gender) ? 'pointer' : 'not-allowed',
-                boxShadow: (name.trim() && gender) ? '0 4px 14px rgba(200, 241, 53, 0.4)' : 'none',
+                boxShadow: (name.trim() && gender) ? '3px 3px 0 #111111' : 'none',
                 transition: 'all 0.2s',
               }}
             >
@@ -348,22 +351,19 @@ export default function OnboardingPage() {
               style={{
                 width: '100%',
                 height: '100%',
-                backgroundColor: 'var(--lime)',
-                color: 'var(--text-primary)',
-                fontWeight: 700,
+                backgroundColor: '#FFE100',
+                color: '#111111',
+                fontWeight: 800,
                 fontSize: 18,
                 fontFamily: 'inherit',
-                border: 'none',
+                border: '2px solid #111111',
                 borderRadius: 9999,
                 cursor: 'pointer',
-                boxShadow: '0 4px 14px rgba(200, 241, 53, 0.4)',
-                transition: 'transform 0.1s',
+                boxShadow: '3px 3px 0 #111111',
+                transition: 'transform 0.15s',
               }}
-              onPointerDown={e => e.currentTarget.style.transform = 'scale(0.98)'}
-              onPointerUp={e => e.currentTarget.style.transform = 'scale(1)'}
-              onPointerLeave={e => e.currentTarget.style.transform = 'scale(1)'}
             >
-              Get Started
+              Get Started →
             </button>
           ) : (
             <button
@@ -371,18 +371,19 @@ export default function OnboardingPage() {
               style={{
                 width: '100%',
                 height: '100%',
-                backgroundColor: '#F1F5F9', // slate-100
-                color: 'var(--text-primary)',
-                fontWeight: 600,
+                backgroundColor: '#FFE100',
+                color: '#111111',
+                fontWeight: 800,
                 fontSize: 18,
                 fontFamily: 'inherit',
-                border: 'none',
+                border: '2px solid #111111',
                 borderRadius: 9999,
                 cursor: 'pointer',
-                transition: 'background-color 0.2s',
+                boxShadow: '3px 3px 0 #111111',
+                transition: 'all 0.2s',
               }}
             >
-              Next
+              Next →
             </button>
           )}
         </div>

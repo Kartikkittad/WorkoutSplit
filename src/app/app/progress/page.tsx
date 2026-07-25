@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import LineChart from '@/components/LineChart';
+import MuscleHeatmap2D from '@/components/MuscleHeatmap2D';
 import { EXERCISES } from '@/lib/exercises';
 import { ProgressDataPoint, PersonalRecord, Workout } from '@/lib/types';
 import { useSettings } from '@/components/SettingsContext';
@@ -270,13 +271,13 @@ function ProgressContent() {
               flex: 1,
               padding: '12px 8px',
               borderRadius: 14,
-              border: activeSection === tab.key ? 'none' : '1px solid var(--border-light)',
-              background: activeSection === tab.key ? 'var(--primary)' : 'white',
-              fontWeight: 700,
+              border: activeSection === tab.key ? '2px solid #111111' : '2px solid var(--border-light)',
+              background: activeSection === tab.key ? '#FFE100' : 'var(--card-bg)',
+              fontWeight: 800,
               fontSize: 14,
               cursor: 'pointer',
               fontFamily: 'inherit',
-              color: 'var(--text-primary)',
+              color: activeSection === tab.key ? '#111111' : 'var(--text-primary)',
               transition: 'all 0.15s ease',
             }}
           >
@@ -297,13 +298,13 @@ function ProgressContent() {
                   flex: 1,
                   padding: '10px 8px',
                   borderRadius: 9999,
-                  border: timeFilter === f.value ? 'none' : '1px solid var(--border-light)',
-                  background: timeFilter === f.value ? 'var(--primary)' : 'white',
-                  fontWeight: 600,
+                  border: timeFilter === f.value ? '2px solid #111111' : '2px solid var(--border-light)',
+                  background: timeFilter === f.value ? '#FFE100' : 'var(--card-bg)',
+                  fontWeight: 800,
                   fontSize: 13,
                   cursor: 'pointer',
                   fontFamily: 'inherit',
-                  color: 'var(--text-primary)',
+                  color: timeFilter === f.value ? '#111111' : 'var(--text-primary)',
                   transition: 'all 0.15s ease',
                 }}
               >
@@ -356,10 +357,10 @@ function ProgressContent() {
             </button>
 
             {showPicker && (
-              <div className="card" style={{ marginTop: 8, padding: '12px 0', maxHeight: 320, overflowY: 'auto' }}>
+              <div className="card" style={{ marginTop: 8, padding: '12px 0 0', position: 'relative', overflow: 'hidden' }}>
                 <div style={{ display: 'flex', gap: 6, padding: '0 12px 12px', borderBottom: '1px solid var(--border-light)' }}>
                   {(['Push', 'Pull', 'Legs', 'Core'] as const).map(cat => {
-                    const catColors: Record<string, string> = { Push: '#C8F135', Pull: '#FFB4C8', Legs: '#B4F0FF', Core: '#E4B4FF' };
+                    const catColors: Record<string, string> = { Push: '#FFE100', Pull: '#FFB4C8', Legs: '#B4F0FF', Core: '#E4B4FF' };
                     return (
                       <button
                         key={cat}
@@ -369,12 +370,12 @@ function ProgressContent() {
                           padding: '8px 0',
                           borderRadius: 10,
                           border: 'none',
-                          background: pickerCategory === cat ? catColors[cat] + '30' : 'transparent',
-                          fontWeight: 600,
+                          background: pickerCategory === cat ? catColors[cat] : 'transparent',
+                          fontWeight: 800,
                           fontSize: 13,
                           cursor: 'pointer',
                           fontFamily: 'inherit',
-                          color: pickerCategory === cat ? 'var(--text-primary)' : 'var(--text-secondary)',
+                          color: pickerCategory === cat ? '#111111' : 'var(--text-secondary)',
                           transition: 'all 0.15s ease',
                         }}
                       >
@@ -384,7 +385,16 @@ function ProgressContent() {
                   })}
                 </div>
 
-                <div style={{ padding: '8px 4px 0' }}>
+                <div
+                  className="no-scrollbar"
+                  style={{
+                    padding: '8px 4px 28px',
+                    maxHeight: 260,
+                    overflowY: 'auto',
+                    scrollbarWidth: 'none',
+                    msOverflowStyle: 'none',
+                  }}
+                >
                   {EXERCISES.filter(ex => ex.category === pickerCategory).map(ex => {
                     const isSelected = ex.id === selectedExercise;
                     return (
@@ -402,7 +412,7 @@ function ProgressContent() {
                           padding: '10px 12px',
                           borderRadius: 12,
                           border: 'none',
-                          background: isSelected ? 'rgba(200,241,53,0.12)' : 'transparent',
+                          background: isSelected ? 'rgba(255, 225, 0, 0.15)' : 'transparent',
                           cursor: 'pointer',
                           fontFamily: 'inherit',
                           textAlign: 'left',
@@ -411,25 +421,57 @@ function ProgressContent() {
                       >
                         <div style={{
                           width: 8, height: 8, borderRadius: '50%',
-                          background: isSelected ? 'var(--primary)' : ex.color,
+                          background: isSelected ? '#FFE100' : 'var(--text-secondary)',
                           flexShrink: 0,
                         }} />
                         <span style={{
                           fontSize: 14,
-                          fontWeight: isSelected ? 700 : 500,
+                          fontWeight: isSelected ? 800 : 500,
                           color: 'var(--text-primary)',
                           flex: 1,
                         }}>
                           {ex.name}
                         </span>
                         {isSelected && (
-                          <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="var(--primary-dark)" strokeWidth={2.5}>
+                          <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="#FFE100" strokeWidth={3}>
                             <polyline points="20 6 9 17 4 12" />
                           </svg>
                         )}
                       </button>
                     );
                   })}
+                </div>
+
+                {/* Bottom Fade & Scroll ↓ Indicator */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    height: 36,
+                    background: 'linear-gradient(to top, var(--card-bg) 40%, transparent)',
+                    pointerEvents: 'none',
+                    display: 'flex',
+                    alignItems: 'flex-end',
+                    justifyContent: 'center',
+                    paddingBottom: 4,
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: 10,
+                      fontWeight: 800,
+                      color: 'var(--text-secondary)',
+                      background: 'var(--input-bg)',
+                      padding: '2px 8px',
+                      borderRadius: 9999,
+                      border: '1px solid var(--border-light)',
+                      boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
+                    }}
+                  >
+                    Scroll ↓
+                  </span>
                 </div>
               </div>
             )}
@@ -445,13 +487,13 @@ function ProgressContent() {
                   flex: 1,
                   padding: '10px 8px',
                   borderRadius: 9999,
-                  border: metric === m.key ? 'none' : '1px solid var(--border-light)',
-                  background: metric === m.key ? 'var(--primary)' : 'white',
-                  fontWeight: 600,
+                  border: metric === m.key ? '2px solid #111111' : '2px solid var(--border-light)',
+                  background: metric === m.key ? '#FFE100' : 'var(--card-bg)',
+                  fontWeight: 800,
                   fontSize: 13,
                   cursor: 'pointer',
                   fontFamily: 'inherit',
-                  color: 'var(--text-primary)',
+                  color: metric === m.key ? '#111111' : 'var(--text-primary)',
                   transition: 'all 0.15s ease',
                 }}
               >
@@ -503,57 +545,9 @@ function ProgressContent() {
             </div>
           </div>
 
-          {/* Muscle Group Heatmap — 3D */}
-          <div className="card" style={{ padding: 18, marginBottom: 24 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-              <h2 style={{ fontSize: 16, fontWeight: 700 }}>Muscle Group Heatmap</h2>
-              <span style={{
-                display: 'flex', alignItems: 'center', gap: 5,
-                fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)',
-                background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 9999,
-                padding: '5px 12px',
-              }}>
-                <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                  <path d="M3 3v5h5" />
-                </svg>
-                Drag to rotate
-              </span>
-            </div>
-
-            {/* White stage for the anatomy model */}
-            <div style={{
-              borderRadius: 16,
-              background: '#FFFFFF',
-              border: '1px solid var(--border-light)',
-              overflow: 'hidden',
-              marginBottom: 14,
-            }}>
-              <BodyVisualizer3D muscleCounts={muscleCounts} />
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: 16, marginBottom: 12 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><div style={{ width: 12, height: 12, borderRadius: 3, background: '#FFD43B' }} /><span style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 600 }}>1x</span></div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><div style={{ width: 12, height: 12, borderRadius: 3, background: '#FF922B' }} /><span style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 600 }}>2x</span></div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><div style={{ width: 12, height: 12, borderRadius: 3, background: '#FA5252' }} /><span style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 600 }}>3x+</span></div>
-            </div>
-
-            <div style={{ textAlign: 'center', borderTop: '1px solid var(--border-light)', paddingTop: 12, marginTop: 4 }}>
-              {(() => {
-                let maxCount = 0;
-                let maxMuscle = '';
-                for (const [muscle, c] of Object.entries(muscleCounts)) {
-                  if (c > maxCount) { maxCount = c; maxMuscle = muscle; }
-                }
-                if (maxCount === 0) return <p style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 500 }}>No workouts logged in the last 7 days</p>;
-                return (
-                  <p style={{ fontSize: 14, color: 'var(--text-primary)', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                    <span>Most trained this week: {maxMuscle}</span>
-                    <FlameIcon size={16} color="#ff8c32" />
-                  </p>
-                );
-              })()}
-            </div>
+          {/* 2D Muscle Group Heatmap */}
+          <div style={{ marginBottom: 24 }}>
+            <MuscleHeatmap2D muscleCounts={muscleCounts} />
           </div>
 
           {/* Personal Records */}

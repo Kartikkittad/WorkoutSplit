@@ -8,6 +8,8 @@ interface SettingsState {
   userGender: 'male' | 'female' | null;
   weightUnit: 'kg' | 'lbs';
   restTimerDuration: number; // in seconds
+  showRestTimer: boolean;
+  theme: 'light' | 'dark';
   onboardingComplete: boolean;
   buddyName: string;
 }
@@ -22,6 +24,8 @@ const defaultSettings: SettingsState = {
   userGender: null,
   weightUnit: 'kg',
   restTimerDuration: 60,
+  showRestTimer: true,
+  theme: 'light',
   onboardingComplete: false,
   buddyName: '',
 };
@@ -35,12 +39,16 @@ const getInitialSettings = (): SettingsState => {
   const gender = isBrowser ? (localStorage.getItem('user_gender') as any) || null : null;
   const obComplete = isBrowser ? localStorage.getItem('onboarding_complete') === 'true' : false;
   const buddyName = isBrowser ? localStorage.getItem('buddy_name') || '' : '';
+  const theme = isBrowser ? (localStorage.getItem('app_theme') as 'light' | 'dark') || 'light' : 'light';
+  const showRestTimer = isBrowser ? localStorage.getItem('show_rest_timer') !== 'false' : true;
 
   return {
     userName: name,
     userGender: gender,
     weightUnit: 'kg',
     restTimerDuration: 60,
+    showRestTimer,
+    theme,
     onboardingComplete: obComplete,
     buddyName: buddyName,
   };
@@ -49,6 +57,13 @@ const getInitialSettings = (): SettingsState => {
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<SettingsState>(getInitialSettings);
   const [loading, setLoading] = useState(true);
+
+  // Apply theme to HTML root element
+  useEffect(() => {
+    if (isBrowser) {
+      document.documentElement.setAttribute('data-theme', settings.theme);
+    }
+  }, [settings.theme]);
 
   useEffect(() => {
     async function loadSettings() {
@@ -59,37 +74,37 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
           settingsMap[s.key] = s.value;
         }
 
-        // This Dexie read is a snapshot taken at provider mount. If the user
-        // enters their name / completes onboarding before it resolves, the
-        // snapshot is stale. `updateSettings` writes those values to
-        // localStorage synchronously, so fall back to localStorage (not the
-        // mount-time defaults) to avoid clobbering fresh input.
         const lsName = localStorage.getItem('user_name');
         const lsGender = localStorage.getItem('user_gender') as 'male' | 'female' | null;
         const lsComplete = localStorage.getItem('onboarding_complete') === 'true';
         const lsBuddy = localStorage.getItem('buddy_name');
+        const lsTheme = (localStorage.getItem('app_theme') as 'light' | 'dark') || 'light';
+        const lsRestTimer = localStorage.getItem('show_rest_timer') !== 'false';
 
         const userName = settingsMap.user_name || settingsMap.name || lsName || settings.userName;
         const userGender = settingsMap.user_gender || lsGender || settings.userGender;
-        // Onboarding completion is monotonic — never downgrade a completed
-        // flag to false just because a stale snapshot lacks it.
         const onboardingComplete = settingsMap.onboarding_complete === true || lsComplete;
         const buddyName = settingsMap.buddy_name || lsBuddy || '';
+        const theme = settingsMap.theme || lsTheme;
+        const showRestTimer = settingsMap.showRestTimer !== undefined ? settingsMap.showRestTimer : lsRestTimer;
 
         setSettings({
           userName,
           userGender,
           weightUnit: settingsMap.weightUnit || settings.weightUnit,
           restTimerDuration: settingsMap.restTimerDuration || settings.restTimerDuration,
+          showRestTimer,
+          theme,
           onboardingComplete,
           buddyName,
         });
 
-        // Sync to local storage
         localStorage.setItem('user_name', userName);
         if (userGender) localStorage.setItem('user_gender', userGender);
         localStorage.setItem('onboarding_complete', onboardingComplete ? 'true' : 'false');
         localStorage.setItem('buddy_name', buddyName);
+        localStorage.setItem('app_theme', theme);
+        localStorage.setItem('show_rest_timer', showRestTimer ? 'true' : 'false');
       } catch (err) {
         console.error('Failed to load settings from Dexie:', err);
       } finally {
@@ -118,6 +133,14 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       }
       if (partial.restTimerDuration !== undefined) {
         await db.settings.put({ key: 'restTimerDuration', value: partial.restTimerDuration });
+      }
+      if (partial.showRestTimer !== undefined) {
+        await db.settings.put({ key: 'showRestTimer', value: partial.showRestTimer });
+        localStorage.setItem('show_rest_timer', partial.showRestTimer ? 'true' : 'false');
+      }
+      if (partial.theme !== undefined) {
+        await db.settings.put({ key: 'theme', value: partial.theme });
+        localStorage.setItem('app_theme', partial.theme);
       }
       if (partial.onboardingComplete !== undefined) {
         await db.settings.put({ key: 'onboarding_complete', value: partial.onboardingComplete });

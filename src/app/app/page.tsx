@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import ProgressCircle from '@/components/ProgressCircle';
 import ExerciseCard from '@/components/ExerciseCard';
 import LineChart from '@/components/LineChart';
+import HugeIcon from '@/components/HugeIcon';
 import { EXERCISES } from '@/lib/exercises';
 import { Workout, BodyWeightEntry } from '@/lib/types';
 import { useSettings } from '@/components/SettingsContext';
@@ -64,38 +65,15 @@ const TrophyFilledIcon = ({ size = 18, color = 'currentColor' }: { size?: number
   </svg>
 );
 
-/* ── Category Icon helper ── */
-function getCategoryIcon(category: string) {
-  switch (category) {
-    case 'Push':
-      return <DumbbellIcon size={20} color="#7a9a0a" />;
-    case 'Pull':
-      return (
-        <svg width={20} height={20} viewBox="0 0 24 24" fill="#c74080">
-          <path d="M13.5 5.5C14.6 5.5 15.5 4.6 15.5 3.5S14.6 1.5 13.5 1.5 11.5 2.4 11.5 3.5s.9 2 2 2zM9.89 19.38l1-4.38L13 17v6h2v-7.5l-2.11-2 .61-3A7.06 7.06 0 0 0 19 13v-2a5.06 5.06 0 0 1-4.1-2l-1-1.6a2.06 2.06 0 0 0-1.7-1 1.76 1.76 0 0 0-.7.1L6 9v5h2V10.1l2.1-.8-1.7 8.1L4 16v2l5.89 1.38z" />
-        </svg>
-      );
-    case 'Legs':
-      return (
-        <svg width={20} height={20} viewBox="0 0 24 24" fill="#0a8aaa">
-          <path d="M13.49 5.48c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm-3.6 13.9l1-4.4 2.1 2v6h2v-7.5l-2.1-2 .6-3A7.06 7.06 0 0 0 19 13v-2c-1.9 0-3.5-1-4.3-2.4l-1-1.6c-.4-.6-1-1-1.7-1-.3 0-.5.1-.8.1L6 9v5h2v-3.8l1.4-.6L7 19h2.9z" />
-        </svg>
-      );
-    case 'Core':
-      return (
-        <svg width={20} height={20} viewBox="0 0 24 24" fill="#9a50d0">
-          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
-        </svg>
-      );
-    default:
-      return <DumbbellIcon size={20} />;
-  }
+/* ── Category Icon helper using HugeIcon ── */
+function getCategoryIcon(category: string, name = '') {
+  return <HugeIcon name={name} category={category} size={20} color="currentColor" strokeWidth={2.2} />;
 }
 
 
 export default function HomePage() {
   const router = useRouter();
-  const { weightUnit, userName, userGender } = useSettings();
+  const { weightUnit, userName, userGender, theme } = useSettings();
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeSplit, setActiveSplit] = useState<{ name: string; days: { name: string; exerciseIds: string[] }[] } | null>(null);
@@ -105,6 +83,29 @@ export default function HomePage() {
   const [currentStreak, setCurrentStreak] = useState(0);
   const [longestStreak, setLongestStreak] = useState(0);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [hasActiveDraft, setHasActiveDraft] = useState(false);
+
+  useEffect(() => {
+    const checkDraft = () => {
+      if (typeof window !== 'undefined') {
+        const draft = localStorage.getItem('workoutsplit_active_workout_draft');
+        if (draft) {
+          try {
+            const parsed = JSON.parse(draft);
+            if (parsed.addedExercises && parsed.addedExercises.length > 0) {
+              setHasActiveDraft(true);
+              return;
+            }
+          } catch (e) {}
+        }
+        setHasActiveDraft(false);
+      }
+    };
+
+    checkDraft();
+    window.addEventListener('focus', checkDraft);
+    return () => window.removeEventListener('focus', checkDraft);
+  }, []);
 
   const filteredBodyWeights = useMemo(() => {
     if (weightTimeframe === 'all') return bodyWeights;
@@ -319,32 +320,102 @@ export default function HomePage() {
   return (
     <div style={{ padding: '24px 16px 96px' }}>
       {/* Page Header — Greeting */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <img src="/icon-192.png" alt="WorkoutSplit" width={40} height={40} style={{ borderRadius: 12 }} />
+          <img src={theme === 'dark' ? '/logo-dark.png' : '/logo.png'} alt="WorkoutSplit Logo" width={40} height={40} style={{ objectFit: 'contain' }} />
           <div>
             <p className="text-secondary" style={{ marginBottom: 2 }}>{timeGreeting}</p>
             <h1 style={{ fontSize: 22, fontWeight: 700 }}>{personalGreeting}</h1>
           </div>
         </div>
-        <button 
-          style={{ width: 44, height: 44, borderRadius: '50%', border: 'none', background: 'var(--input-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text-primary)' }}
-          aria-label="Notifications"
+      </div>
+
+      {/* ── Active Draft Resume Banner ── */}
+      {hasActiveDraft && (
+        <div
+          onClick={() => router.push('/app/log')}
+          style={{
+            background: '#111111', color: '#FFE100', borderRadius: 18, border: '2px solid #111111',
+            padding: '14px 18px', marginBottom: 16, display: 'flex', justifyContent: 'space-between',
+            alignItems: 'center', cursor: 'pointer', boxShadow: '4px 4px 0 #FFE100', transition: 'all 0.15s ease'
+          }}
         >
-          <BellIcon size={20} />
-        </button>
+          <div>
+            <div style={{ font: "800 11px 'Space Grotesk', monospace", letterSpacing: '.1em', textTransform: 'uppercase', marginBottom: 2 }}>⚡ IN PROGRESS</div>
+            <div style={{ font: "800 15px 'Archivo', sans-serif" }}>Resume Active Workout Session</div>
+          </div>
+          <div style={{ background: '#FFE100', color: '#111111', borderRadius: 999, padding: '6px 14px', font: "800 12px 'Archivo', sans-serif" }}>
+            Resume
+          </div>
+        </div>
+      )}
+
+      {/* ── Quick Workouts Section (Hevy style) ── */}
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <h2 style={{ fontSize: 18, fontWeight: 800, fontFamily: 'var(--font-display)', color: 'var(--text-primary)' }}>
+            Quick Start Workouts
+          </h2>
+          <button
+            onClick={() => router.push('/app/log')}
+            style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', background: 'none', border: 'none', cursor: 'pointer' }}
+          >
+            + Custom
+          </button>
+        </div>
+
+        <div className="scroll-row" style={{ gap: 10, paddingBottom: 4 }}>
+          {[
+            { name: 'Push Day', desc: 'Bench, Overhead Press, Triceps', icon: '🏋️' },
+            { name: 'Pull Day', desc: 'Deadlift, Lat Pulldown, Biceps', icon: '🚣' },
+            { name: 'Leg Day', desc: 'Squat, Leg Press, Romanian DL', icon: '🦵' },
+            { name: 'Upper Body', desc: 'Chest, Back, Shoulders & Arms', icon: '💪' },
+            { name: 'Lower Body', desc: 'Quads, Hamstrings & Abs', icon: '🏃' },
+          ].map((w, idx) => (
+            <div
+              key={idx}
+              onClick={() => router.push(`/app/log?template=${encodeURIComponent(w.name)}`)}
+              style={{
+                flexShrink: 0, width: 145, background: 'var(--card-bg)', border: '2px solid var(--border-light)',
+                borderRadius: 18, padding: 14, cursor: 'pointer',
+                display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+                transition: 'transform 0.15s ease, border-color 0.15s ease',
+              }}
+            >
+              <div>
+                <div style={{ fontSize: 28, marginBottom: 8 }}>{w.icon}</div>
+                <div style={{ font: "800 15px 'Archivo', sans-serif", color: 'var(--text-primary)', marginBottom: 4 }}>{w.name}</div>
+                <div style={{ font: "500 12px 'Archivo', sans-serif", color: 'var(--text-secondary)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: 1.4 }}>
+                  {w.desc}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Workout Progress Card — Lime accent */}
       <div 
         className="card" 
-        style={{ background: 'var(--primary)', marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+        style={{ 
+          background: 'var(--card-bg)', 
+          border: '2px solid var(--border-light)',
+          marginBottom: 16, 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          cursor: 'pointer' 
+        }}
         onClick={() => router.push('/app/log')}
       >
         <div>
-          <p style={{ fontSize: 14, fontWeight: 600, opacity: 0.7, marginBottom: 4 }}>Workout Progress!</p>
-          <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Today&apos;s Workout</h2>
-          <p style={{ fontSize: 13, fontWeight: 500 }}>
+          <p style={{ fontSize: 13, fontWeight: 800, color: '#FFE100', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>
+            Workout Progress!
+          </p>
+          <h2 style={{ fontSize: 20, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 4 }}>
+            Today&apos;s Workout
+          </h2>
+          <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>
             {todaysExercises > 0 ? `${todaysExercises} exercises completed` : 'No exercises yet — tap to start!'}
           </p>
         </div>
@@ -352,44 +423,46 @@ export default function HomePage() {
           percentage={completionPercent} 
           size={72} 
           strokeWidth={7} 
-          color="var(--text-primary)"
-          bgColor="rgba(0,0,0,0.1)"
+          color="#FFE100"
+          bgColor="var(--input-bg)"
         >
-          <span style={{ fontSize: 16, fontWeight: 800 }}>{completionPercent}%</span>
+          <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-primary)' }}>{completionPercent}%</span>
         </ProgressCircle>
       </div>
 
       {/* ── Body Weight Tracker ── */}
       <div className="card" style={{ marginBottom: 16, padding: 16 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: filteredBodyWeights.length > 0 ? 12 : 14 }}>
           <h2 style={{ fontSize: 16, fontWeight: 700 }}>Body Weight</h2>
-          <select 
-            className="text-secondary" 
-            style={{ 
-              fontSize: 13, 
-              fontWeight: 600, 
-              background: 'transparent', 
-              border: 'none', 
-              outline: 'none', 
-              cursor: 'pointer',
-              appearance: 'none',
-              paddingRight: 16,
-              backgroundImage: 'url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%2394a3b8%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E")',
-              backgroundRepeat: 'no-repeat',
-              backgroundPosition: 'right center',
-              backgroundSize: '10px auto',
-              fontFamily: 'inherit'
-            }}
-            value={weightTimeframe}
-            onChange={(e) => setWeightTimeframe(e.target.value as any)}
-          >
-            <option value="7d" style={{ background: 'var(--card-bg)', color: 'var(--text-primary)' }}>Trend (Last 7d)</option>
-            <option value="30d" style={{ background: 'var(--card-bg)', color: 'var(--text-primary)' }}>Trend (Last 30d)</option>
-            <option value="all" style={{ background: 'var(--card-bg)', color: 'var(--text-primary)' }}>Trend (All Time)</option>
-          </select>
+          {filteredBodyWeights.length > 0 && (
+            <select 
+              className="text-secondary" 
+              style={{ 
+                fontSize: 13, 
+                fontWeight: 600, 
+                background: 'transparent', 
+                border: 'none', 
+                outline: 'none', 
+                cursor: 'pointer',
+                appearance: 'none',
+                paddingRight: 16,
+                backgroundImage: 'url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%2394a3b8%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E")',
+                backgroundRepeat: 'no-repeat',
+                backgroundPosition: 'right center',
+                backgroundSize: '10px auto',
+                fontFamily: 'inherit'
+              }}
+              value={weightTimeframe}
+              onChange={(e) => setWeightTimeframe(e.target.value as any)}
+            >
+              <option value="7d" style={{ background: 'var(--card-bg)', color: 'var(--text-primary)' }}>Trend (Last 7d)</option>
+              <option value="30d" style={{ background: 'var(--card-bg)', color: 'var(--text-primary)' }}>Trend (Last 30d)</option>
+              <option value="all" style={{ background: 'var(--card-bg)', color: 'var(--text-primary)' }}>Trend (All Time)</option>
+            </select>
+          )}
         </div>
         
-        {filteredBodyWeights.length > 0 ? (
+        {filteredBodyWeights.length > 0 && (
           <div style={{ marginBottom: 16 }}>
             <LineChart 
               data={filteredBodyWeights.map(w => ({ label: new Date(w.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), value: w.weight }))} 
@@ -397,13 +470,6 @@ export default function HomePage() {
               height={80} 
               hideAxes={true}
             />
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px 16px', textAlign: 'center', marginBottom: 16 }}>
-            <div style={{ marginBottom: 12, filter: 'drop-shadow(0 4px 16px rgba(200, 241, 53, 0.4))' }}>
-              <ScaleIcon size={48} color="var(--lime)" />
-            </div>
-            <p className="text-secondary" style={{ fontSize: 14, fontWeight: 500 }}>Log your weight today to start tracking</p>
           </div>
         )}
         
@@ -434,12 +500,12 @@ export default function HomePage() {
             disabled={!currentWeightInput || isNaN(parseFloat(currentWeightInput))}
             style={{
               height: 44,
-              background: 'var(--primary)',
-              color: '#0F172A',
-              border: 'none',
+              background: '#FFE100',
+              color: '#111111',
+              border: '2px solid #111111',
               borderRadius: 12,
               padding: '0 20px',
-              fontWeight: 700,
+              fontWeight: 800,
               fontSize: 14,
               cursor: 'pointer',
               whiteSpace: 'nowrap',
@@ -457,8 +523,9 @@ export default function HomePage() {
       <div 
         className="card" 
         style={{ 
-          background: currentStreak >= 7 ? '#C8F135' : 'white', 
-          color: '#0F172A', 
+          background: currentStreak >= 7 ? '#FFE100' : 'var(--card-bg)', 
+          color: currentStreak >= 7 ? '#111111' : 'var(--text-primary)', 
+          border: currentStreak >= 7 ? '2px solid #111111' : '2px solid var(--border-light)',
           marginBottom: 16, 
           padding: '20px 24px',
           display: 'flex',
@@ -466,25 +533,23 @@ export default function HomePage() {
           justifyContent: 'space-between',
           transition: 'all 0.3s ease',
           boxShadow: 'var(--shadow-card)',
-          borderRadius: 24, // rounded-3xl
+          borderRadius: 24,
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <FlameIcon size={36} color={currentStreak >= 7 ? '#0F172A' : '#ff8c32'} />
+          <FlameIcon size={36} color={currentStreak >= 7 ? '#111111' : '#ff8c32'} />
           <div style={{ textAlign: 'left' }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-              <span style={{ fontSize: 24, fontWeight: 900, lineHeight: 1 }}>{currentStreak}</span>
-              <span style={{ fontSize: 13, fontWeight: 700, color: currentStreak >= 7 ? '#0F172A' : 'var(--text-secondary)' }}>day streak</span>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+              <span style={{ fontSize: 24, fontWeight: 900, lineHeight: 1, color: currentStreak >= 7 ? '#111111' : 'var(--text-primary)' }}>{currentStreak}</span>
+              <span style={{ fontSize: 13, fontWeight: 800, color: currentStreak >= 7 ? '#111111' : 'var(--text-primary)' }}>day streak</span>
             </div>
-            {currentStreak === 0 && (
-              <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4, fontWeight: 600 }}>
-                Start your streak today!
-              </p>
-            )}
+            <p style={{ fontSize: 12, color: currentStreak >= 7 ? '#333333' : 'var(--text-secondary)', marginTop: 4, fontWeight: 600 }}>
+              {currentStreak === 0 ? 'Start your streak today!' : 'Keep up the strong momentum!'}
+            </p>
           </div>
         </div>
         <div style={{ textAlign: 'right' }}>
-          <span style={{ fontSize: 13, fontWeight: 700, color: currentStreak >= 7 ? '#334155' : '#94a3b8' }}>
+          <span style={{ fontSize: 13, fontWeight: 800, color: currentStreak >= 7 ? '#111111' : 'var(--text-secondary)' }}>
             Best: {longestStreak} days
           </span>
         </div>
@@ -615,7 +680,7 @@ export default function HomePage() {
                       style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: j < Math.min(workout.exercises.length, 3) - 1 ? '1px solid #f1f5f9' : 'none', cursor: 'pointer' }}
                     >
                       <div style={{ width: 32, height: 32, borderRadius: 8, background: exerciseDef ? `${exerciseDef.color}20` : '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {getCategoryIcon(exerciseDef?.category || 'Push')}
+                        {getCategoryIcon(exerciseDef?.category || 'Push', ex.exerciseName)}
                       </div>
                       <div style={{ flex: 1 }}>
                         <p style={{ fontSize: 14, fontWeight: 600 }}>{ex.exerciseName}</p>
@@ -679,7 +744,7 @@ export default function HomePage() {
             return (
               <ExerciseCard
                 key={ex.id}
-                icon={getCategoryIcon(ex.category)}
+                icon={getCategoryIcon(ex.category, ex.name)}
                 name={ex.name}
                 workoutCount={exerciseWorkouts.length}
                 duration={totalMin}

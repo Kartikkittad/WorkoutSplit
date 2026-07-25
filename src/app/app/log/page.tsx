@@ -2,9 +2,10 @@
 
 import { useState, useCallback, useEffect, Suspense, useRef, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { EXERCISES, CATEGORIES, getExercisesByCategory, type ExerciseDefinition } from '@/lib/exercises';
+import { EXERCISES, CATEGORIES, getExercisesByCategory, searchExercises, type ExerciseDefinition } from '@/lib/exercises';
 import type { WorkoutSet, Template, Split, Workout, SplitDay } from '@/lib/types';
 import RestTimer from '@/components/RestTimer';
+import HugeIcon from '@/components/HugeIcon';
 import { useSettings } from '@/components/SettingsContext';
 
 /* ── SVG Icons ── */
@@ -45,46 +46,9 @@ const LinkIcon = ({ size = 16, color = 'currentColor' }: { size?: number; color?
   </svg>
 );
 
-/* ── SVG Category Icons ── */
-function getCategoryIcon(category: string, size = 20) {
-  switch (category) {
-    case 'Push':
-      return (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
-          <path d="M6.5 2A2.5 2.5 0 0 0 4 4.5V9H3a1 1 0 0 0-1 1v4a1 1 0 0 0 1 1h1v4.5A2.5 2.5 0 0 0 6.5 22h1A2.5 2.5 0 0 0 10 19.5V15h4v4.5a2.5 2.5 0 0 0 2.5 2.5h1a2.5 2.5 0 0 0 2.5-2.5V15h1a1 1 0 0 0 1-1v-4a1 1 0 0 0-1-1h-1V4.5A2.5 2.5 0 0 0 17.5 2h-1A2.5 2.5 0 0 0 14 4.5V9h-4V4.5A2.5 2.5 0 0 0 7.5 2h-1z" />
-        </svg>
-      );
-    case 'Pull':
-      return (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
-          <path d="M13.5 5.5C14.6 5.5 15.5 4.6 15.5 3.5S14.6 1.5 13.5 1.5 11.5 2.4 11.5 3.5s.9 2 2 2zM9.89 19.38l1-4.38L13 17v6h2v-7.5l-2.11-2 .61-3A7.06 7.06 0 0 0 19 13v-2a5.06 5.06 0 0 1-4.1-2l-1-1.6a2.06 2.06 0 0 0-1.7-1 1.76 1.76 0 0 0-.7.1L6 9v5h2V10.1l2.1-.8-1.7 8.1L4 16v2l5.89 1.38z" />
-        </svg>
-      );
-    case 'Legs':
-      return (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
-          <path d="M13.49 5.48c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm-3.6 13.9l1-4.4 2.1 2v6h2v-7.5l-2.1-2 .6-3A7.06 7.06 0 0 0 19 13v-2c-1.9 0-3.5-1-4.3-2.4l-1-1.6c-.4-.6-1-1-1.7-1-.3 0-.5.1-.8.1L6 9v5h2v-3.8l1.4-.6L7 19h2.9z" />
-        </svg>
-      );
-    case 'Core':
-      return (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
-        </svg>
-      );
-    case 'Cardio':
-      return (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
-        </svg>
-      );
-    default:
-      return (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
-          <path d="M6.5 2A2.5 2.5 0 0 0 4 4.5V9H3a1 1 0 0 0-1 1v4a1 1 0 0 0 1 1h1v4.5A2.5 2.5 0 0 0 6.5 22h1A2.5 2.5 0 0 0 10 19.5V15h4v4.5a2.5 2.5 0 0 0 2.5 2.5h1a2.5 2.5 0 0 0 2.5-2.5V15h1a1 1 0 0 0 1-1v-4a1 1 0 0 0-1-1h-1V4.5A2.5 2.5 0 0 0 17.5 2h-1A2.5 2.5 0 0 0 14 4.5V9h-4V4.5A2.5 2.5 0 0 0 7.5 2h-1z" />
-        </svg>
-      );
-  }
+/* ── SVG Category Icons using HugeIcon ── */
+function getCategoryIcon(category: string, name = '', size = 20) {
+  return <HugeIcon name={name} category={category} size={size} color="currentColor" strokeWidth={2.2} />;
 }
 
 /* -------------------------------------------------- */
@@ -105,10 +69,11 @@ interface AddedExercise {
 function LogWorkoutContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { weightUnit, buddyName, userGender } = useSettings();
+  const { weightUnit, buddyName, userGender, showRestTimer, restTimerDuration } = useSettings();
 
   const [workoutName, setWorkoutName] = useState('My Workout');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [searchQuery, setSearchQuery] = useState('');
   const [addedExercises, setAddedExercises] = useState<AddedExercise[]>([]);
   const [startTime] = useState<Date>(() => new Date());
   const [saving, setSaving] = useState(false);
@@ -130,6 +95,48 @@ function LogWorkoutContent() {
   const [activeSplit, setActiveSplit] = useState<Split | null>(null);
   const [workoutNotes, setWorkoutNotes] = useState('');
   const [finishedWorkout, setFinishedWorkout] = useState<Workout | null>(null);
+
+  // Restore draft from localStorage on mount
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const savedDraft = localStorage.getItem('workoutsplit_active_workout_draft');
+    if (savedDraft) {
+      try {
+        const parsed = JSON.parse(savedDraft);
+        if (parsed.addedExercises && parsed.addedExercises.length > 0) {
+          setWorkoutName(parsed.workoutName || 'My Workout');
+          setAddedExercises(parsed.addedExercises);
+          setWorkoutNotes(parsed.workoutNotes || '');
+          if (parsed.supersets) setSupersets(parsed.supersets);
+          setShowExercisePicker(false);
+        }
+      } catch (e) {
+        console.error('Failed to parse active draft:', e);
+      }
+    }
+  }, []);
+
+  // Save active draft to localStorage in real-time
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (addedExercises.length > 0) {
+      const draft = {
+        workoutName,
+        addedExercises,
+        workoutNotes,
+        supersets,
+        startTime: startTime.toISOString(),
+      };
+      localStorage.setItem('workoutsplit_active_workout_draft', JSON.stringify(draft));
+    } else {
+      localStorage.removeItem('workoutsplit_active_workout_draft');
+    }
+  }, [workoutName, addedExercises, workoutNotes, supersets, startTime]);
+
+  // Compute filtered exercises using search query
+  const filteredExercises = useMemo(() => {
+    return searchExercises(searchQuery, selectedCategory);
+  }, [searchQuery, selectedCategory]);
 
   // Buddy Mode & Intensity Rating states
   const [buddyModeActive, setBuddyModeActive] = useState(false);
@@ -154,6 +161,13 @@ function LogWorkoutContent() {
   // Superset selection on log screen
   const [showAddSupersetModal, setShowAddSupersetModal] = useState(false);
   const [selectedSupersetExercises, setSelectedSupersetExercises] = useState<string[]>([]);
+
+  // Custom Exercise Creation state
+  const [showCustomExerciseModal, setShowCustomExerciseModal] = useState(false);
+  const [customName, setCustomName] = useState('');
+  const [customCategory, setCustomCategory] = useState<'Push' | 'Pull' | 'Legs' | 'Core' | 'Cardio'>('Push');
+  const [customSets, setCustomSets] = useState(3);
+  const [customReps, setCustomReps] = useState(10);
 
   const addSupersetOnLog = useCallback((exId1: string, exId2: string) => {
     setSupersets(prev => {
@@ -732,7 +746,6 @@ function LogWorkoutContent() {
   }, []);
 
   /* — derived ---------------------------------------------- */
-  const filteredExercises = getExercisesByCategory(selectedCategory);
   const hasCompletedSet = addedExercises.some((ex) =>
     ex.sets.some((s) => s.completed),
   );
@@ -793,6 +806,38 @@ function LogWorkoutContent() {
     },
     [addedExercises],
   );
+
+  const handleSaveCustomExercise = useCallback(async () => {
+    if (!customName.trim()) return;
+    const customId = 'custom-' + Date.now();
+    const categoryColors: Record<string, string> = {
+      Push: '#FFE100',
+      Pull: '#FFB4C8',
+      Legs: '#B4F0FF',
+      Core: '#E4B4FF',
+      Cardio: '#FFD1B4',
+    };
+    const newDef: ExerciseDefinition = {
+      id: customId,
+      name: customName.trim(),
+      category: customCategory,
+      emoji: '🏋️',
+      defaultSets: customSets,
+      defaultReps: customReps,
+      color: categoryColors[customCategory] || '#FFE100',
+    };
+
+    try {
+      const { db } = await import('@/lib/dexie');
+      await db.exercises_library.put(newDef);
+    } catch (err) {
+      console.error('Error saving custom exercise', err);
+    }
+
+    addExercise(newDef);
+    setShowCustomExerciseModal(false);
+    setCustomName('');
+  }, [customName, customCategory, customSets, customReps, addExercise]);
 
   const removeExercise = useCallback((exerciseId: string) => {
     setAddedExercises((prev) => prev.filter((e) => e.exerciseId !== exerciseId));
@@ -1102,6 +1147,14 @@ function LogWorkoutContent() {
         }
       }
 
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('workoutsplit_active_workout_draft');
+      }
+      setAddedExercises([]);
+      setSupersets([]);
+      setWorkoutNotes('');
+      setWorkoutName('My Workout');
+
       router.push('/app');
     } catch (e) {
       console.error(e);
@@ -1271,13 +1324,13 @@ function LogWorkoutContent() {
                   setShowAddSupersetModal(true);
                 }}
                 style={{
-                  fontSize: 12, fontWeight: 700, color: 'var(--text-primary)',
-                  background: 'var(--lime)', border: 'none', borderRadius: 9999,
+                  fontSize: 12, fontWeight: 800, color: '#111111',
+                  background: '#FFE100', border: '1px solid #111111', borderRadius: 9999,
                   padding: '6px 14px', cursor: 'pointer', fontFamily: 'inherit',
                   display: 'flex', alignItems: 'center', gap: 6,
                 }}
               >
-                <LinkIcon size={14} color="var(--text-primary)" /> Add Superset
+                <LinkIcon size={14} color="#111111" /> Add Superset
               </button>
             )}
           </div>
@@ -1294,8 +1347,8 @@ function LogWorkoutContent() {
                     {/* Exercise Header */}
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-                        <div style={{ width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', color: ex.color, flexShrink: 0 }}>
-                          {getCategoryIcon(ex.category, 20)}
+                        <div style={{ width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-primary)', flexShrink: 0 }}>
+                          {getCategoryIcon(ex.category, ex.exerciseName, 20)}
                         </div>
                         <span style={{ fontWeight: 800, fontSize: 16, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {ex.exerciseName}
@@ -1323,7 +1376,7 @@ function LogWorkoutContent() {
                         {/* LEFT Column — You */}
                         <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
                           <p style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--lime)' }} />
+                            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#FFE100' }} />
                             You
                           </p>
 
@@ -1350,9 +1403,9 @@ function LogWorkoutContent() {
                                     flexShrink: 0,
                                     padding: '6px 10px',
                                     borderRadius: 8,
-                                    background: isSetPillCompleted ? 'var(--lime)' : 'var(--input-bg)',
-                                    border: '1px solid ' + (isSetPillCompleted ? 'transparent' : 'var(--border-light)'),
-                                    color: 'var(--text-primary)',
+                                    background: isSetPillCompleted ? '#FFE100' : 'var(--input-bg)',
+                                    border: '1px solid ' + (isSetPillCompleted ? '#111111' : 'var(--border-light)'),
+                                    color: isSetPillCompleted ? '#111111' : 'var(--text-primary)',
                                     display: 'flex',
                                     alignItems: 'center',
                                     gap: 4,
@@ -1383,7 +1436,7 @@ function LogWorkoutContent() {
                               onClick={() => handleOpenLogSheet(ex.exerciseId, false)}
                               style={{
                                 height: 38, borderRadius: 9999, border: 'none',
-                                background: 'var(--lime)', color: 'var(--text-primary)', fontWeight: 800,
+                                background: '#FFE100', color: '#111111', fontWeight: 800,
                                 cursor: 'pointer', fontSize: 12, fontFamily: 'inherit',
                                 boxShadow: '0 2px 6px rgba(200,241,53,0.15)',
                               }}
@@ -1394,7 +1447,7 @@ function LogWorkoutContent() {
                               <button
                                 onClick={() => repeatLastSet(ex.exerciseId, false)}
                                 style={{
-                                  height: 38, borderRadius: 9999, border: '1px solid var(--lime)',
+                                  height: 38, borderRadius: 9999, border: '1px solid #FFE100',
                                   background: 'transparent', color: 'var(--text-primary)', fontWeight: 700,
                                   cursor: 'pointer', fontSize: 12, fontFamily: 'inherit',
                                 }}
@@ -1565,7 +1618,7 @@ function LogWorkoutContent() {
                             onClick={() => handleOpenLogSheet(ex.exerciseId, false)}
                             style={{
                               flex: 2, height: 48, borderRadius: 9999, border: 'none',
-                              background: 'var(--lime)', color: 'var(--text-primary)', fontWeight: 800,
+                              background: 'var(--lime)', color: '#111111', fontWeight: 800,
                               cursor: 'pointer', fontSize: 14, fontFamily: 'inherit',
                               boxShadow: '0 4px 12px rgba(200,241,53,0.15)',
                             }}
@@ -1982,11 +2035,11 @@ function LogWorkoutContent() {
                 height: 36,
                 paddingInline: 16,
                 borderRadius: 9999,
-                border: '1px solid var(--border-light)',
-                background: isPickerVisible ? 'var(--primary)' : 'white',
-                fontWeight: 600,
+                border: '2px solid var(--border-light)',
+                background: isPickerVisible ? '#FFE100' : 'var(--card-bg)',
+                fontWeight: 800,
                 fontSize: 13,
-                color: 'var(--text-primary)',
+                color: isPickerVisible ? '#111111' : 'var(--text-primary)',
                 cursor: 'pointer',
                 fontFamily: 'inherit',
               }}
@@ -1998,6 +2051,18 @@ function LogWorkoutContent() {
 
         {isPickerVisible && (
           <>
+            {/* Exercise Search Filter */}
+            <div style={{ marginBottom: 12 }}>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="🔍 Search exercises (e.g. Overhead, Triceps, Abs)..."
+                className="input-field"
+                style={{ height: 44, fontSize: 14, borderRadius: 12 }}
+              />
+            </div>
+
             {/* Category tabs */}
             <div className="scroll-row" style={{ marginBottom: 16 }}>
               {CATEGORIES.map((cat) => (
@@ -2008,11 +2073,11 @@ function LogWorkoutContent() {
                     height: 40,
                     padding: '0 20px',
                     borderRadius: 9999,
-                    border: selectedCategory === cat ? 'none' : '1px solid var(--border-light)',
-                    background: selectedCategory === cat ? 'var(--primary)' : 'white',
-                    fontWeight: 600,
+                    border: selectedCategory === cat ? '2px solid #111111' : '2px solid var(--border-light)',
+                    background: selectedCategory === cat ? '#FFE100' : 'var(--card-bg)',
+                    fontWeight: 800,
                     fontSize: 14,
-                    color: 'var(--text-primary)',
+                    color: selectedCategory === cat ? '#111111' : 'var(--text-primary)',
                     cursor: 'pointer',
                     flexShrink: 0,
                     fontFamily: 'inherit',
@@ -2023,6 +2088,31 @@ function LogWorkoutContent() {
                 </button>
               ))}
             </div>
+
+            {/* Create Custom Exercise Button */}
+            <button
+              onClick={() => setShowCustomExerciseModal(true)}
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                borderRadius: 16,
+                border: '2px dashed #111111',
+                background: '#FFE100',
+                color: '#111111',
+                fontWeight: 800,
+                fontSize: 14,
+                cursor: 'pointer',
+                marginBottom: 16,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                fontFamily: 'inherit',
+                transition: 'transform 0.15s ease',
+              }}
+            >
+              <span style={{ fontSize: 16, color: '#111111' }}>+</span> Create Custom Exercise
+            </button>
 
             {/* Exercise list */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -2056,15 +2146,16 @@ function LogWorkoutContent() {
                         width: 44,
                         height: 44,
                         borderRadius: 14,
-                        background: def.color + '22',
+                        background: 'var(--input-bg)',
+                        border: '1.5px solid var(--border-light)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         flexShrink: 0,
-                        color: def.color,
+                        color: 'var(--text-primary)',
                       }}
                     >
-                      {getCategoryIcon(def.category, 22)}
+                      {getCategoryIcon(def.category, def.name, 22)}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--text-primary)' }}>
@@ -2127,7 +2218,7 @@ function LogWorkoutContent() {
               {restActive ? `Resting — ${Math.floor(restSeconds / 60)}:${(restSeconds % 60).toString().padStart(2, '0')}` : 'Start Rest Timer'}
             </span>
           </div>
-          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', background: 'var(--lime)', padding: '4px 12px', borderRadius: 9999 }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color: '#111111', background: 'var(--lime)', padding: '4px 12px', borderRadius: 9999 }}>
             {restActive ? 'Expand' : 'Start'}
           </span>
         </button>
@@ -2286,11 +2377,11 @@ function LogWorkoutContent() {
           
           <div style={{ display: 'flex', gap: 16, marginBottom: 50, justifyContent: 'center' }}>
             {[
-              { rating: 1, emoji: '😴', label: 'Easy' },
-              { rating: 2, emoji: '😐', label: 'OK' },
-              { rating: 3, emoji: '💪', label: 'Good' },
-              { rating: 4, emoji: '🔥', label: 'Hard' },
-              { rating: 5, emoji: '⚡', label: 'Beast' },
+              { rating: 1, label: 'Easy' },
+              { rating: 2, label: 'OK' },
+              { rating: 3, label: 'Good' },
+              { rating: 4, label: 'Hard' },
+              { rating: 5, label: 'Beast' },
             ].map(item => {
               const isSelected = intensityRating === item.rating;
               return (
@@ -2298,25 +2389,25 @@ function LogWorkoutContent() {
                   key={item.rating}
                   onClick={() => setIntensityRating(item.rating)}
                   style={{
-                    border: 'none',
-                    background: isSelected ? 'var(--lime)' : 'transparent',
-                    width: 64,
-                    height: 64,
-                    borderRadius: '50%',
+                    border: isSelected ? '2px solid #111111' : '1px solid var(--border-light)',
+                    background: isSelected ? '#FFE100' : 'var(--input-bg)',
+                    color: isSelected ? '#111111' : 'var(--text-primary)',
+                    width: 60,
+                    height: 60,
+                    borderRadius: 16,
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: 32,
                     cursor: 'pointer',
-                    transform: isSelected ? 'scale(1.1)' : 'scale(1)',
-                    animation: isSelected ? 'pulseScale 0.3s ease-out' : 'none',
+                    transform: isSelected ? 'scale(1.05)' : 'scale(1)',
                     transition: 'all 0.2s ease',
-                    boxShadow: isSelected ? '0 8px 16px rgba(200, 241, 53, 0.4)' : 'none',
+                    fontFamily: 'inherit',
                   }}
                   title={item.label}
                 >
-                  {item.emoji}
+                  <span style={{ fontSize: 16, fontWeight: 900 }}>{item.rating}</span>
+                  <span style={{ fontSize: 10, fontWeight: 700 }}>{item.label}</span>
                 </button>
               );
             })}
@@ -2332,7 +2423,7 @@ function LogWorkoutContent() {
                 borderRadius: 9999,
                 border: 'none',
                 background: intensityRating !== null ? 'var(--lime)' : 'var(--input-bg)',
-                color: 'var(--text-primary)',
+                color: intensityRating !== null ? '#111111' : 'var(--text-primary)',
                 fontWeight: 700,
                 fontSize: 16,
                 fontFamily: 'inherit',
@@ -2485,7 +2576,7 @@ function LogWorkoutContent() {
               borderRadius: 9999,
               border: 'none',
               background: 'var(--lime)',
-              color: 'var(--text-primary)',
+              color: '#111111',
               fontWeight: 700,
               fontSize: 15,
               fontFamily: 'inherit',
@@ -2543,7 +2634,8 @@ function LogWorkoutContent() {
           style={{
             position: 'fixed',
             inset: 0,
-            background: '#F8FAFC', // Slate 50 background for clean light look
+            background: 'var(--bg)',
+            color: 'var(--text-primary)',
             zIndex: 1000,
             display: 'flex',
             flexDirection: 'column',
@@ -2554,7 +2646,7 @@ function LogWorkoutContent() {
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-            <h2 style={{ fontSize: 22, fontWeight: 800 }}>Workout Templates</h2>
+            <h2 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)' }}>Workout Templates</h2>
             <button
               onClick={() => setShowTemplates(false)}
               style={{
@@ -2562,7 +2654,7 @@ function LogWorkoutContent() {
                 height: 44,
                 borderRadius: '50%',
                 border: 'none',
-                background: 'white',
+                background: 'var(--input-bg)',
                 boxShadow: 'var(--shadow-card)',
                 display: 'flex',
                 alignItems: 'center',
@@ -2592,12 +2684,12 @@ function LogWorkoutContent() {
                     style={{
                       padding: '14px 16px', display: 'flex', justifyContent: 'space-between',
                       alignItems: 'center', cursor: 'pointer', border: 'none',
-                      background: 'white',
+                      background: 'var(--card-bg)', color: 'var(--text-primary)',
                       fontFamily: 'inherit', textAlign: 'left', width: '100%',
                     }}
                   >
                     <div>
-                      <p style={{ fontSize: 15, fontWeight: 700 }}>{day.name}</p>
+                      <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>{day.name}</p>
                       <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
                         {day.exerciseIds.length} exercises · {(day.supersets || []).length} supersets
                       </p>
@@ -2617,10 +2709,10 @@ function LogWorkoutContent() {
 
           {templates.length === 0 ? (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: 24 }}>
-              <div style={{ marginBottom: 16, color: '#94a3b8' }}>
+              <div style={{ marginBottom: 16, color: 'var(--text-secondary)' }}>
                 <ClipboardFilledIcon size={64} />
               </div>
-              <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>No templates yet</h3>
+              <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8, color: 'var(--text-primary)' }}>No templates yet</h3>
               <p className="text-secondary" style={{ fontSize: 14 }}>Save a workout as a template to reuse it</p>
             </div>
           ) : (
@@ -2629,7 +2721,7 @@ function LogWorkoutContent() {
                 <div
                   key={tmpl.id}
                   className="card card-hover"
-                  style={{ cursor: 'pointer', padding: 18, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white' }}
+                  style={{ cursor: 'pointer', padding: 18, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--card-bg)', color: 'var(--text-primary)' }}
                   onClick={() => handleLoadTemplate(tmpl)}
                 >
                   <div style={{ flex: 1, minWidth: 0, paddingRight: 12 }}>
@@ -2691,12 +2783,14 @@ function LogWorkoutContent() {
             onClick={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
             style={{
-              background: 'white',
+              background: 'var(--card-bg)',
+              color: 'var(--text-primary)',
               borderRadius: 24,
               padding: 24,
               width: '100%',
               maxWidth: 320,
               textAlign: 'left',
+              border: '2px solid var(--border-light)',
             }}
           >
             <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 8, color: 'var(--text-primary)' }}>Save Template</h3>
@@ -2718,8 +2812,8 @@ function LogWorkoutContent() {
                   flex: 1,
                   height: 48,
                   borderRadius: 9999,
-                  border: '1px solid var(--border-light)',
-                  background: 'white',
+                  border: '2px solid var(--border-light)',
+                  background: 'var(--input-bg)',
                   color: 'var(--text-primary)',
                   fontWeight: 700,
                   cursor: 'pointer',
@@ -2735,10 +2829,10 @@ function LogWorkoutContent() {
                   flex: 1,
                   height: 48,
                   borderRadius: 9999,
-                  border: 'none',
-                  background: 'var(--lime)',
-                  color: 'var(--text-primary)',
-                  fontWeight: 700,
+                  border: '2px solid #111111',
+                  background: '#FFE100',
+                  color: '#111111',
+                  fontWeight: 800,
                   cursor: 'pointer',
                   fontSize: 14,
                   fontFamily: 'inherit',
@@ -2774,15 +2868,17 @@ function LogWorkoutContent() {
             <div
               onClick={(e) => e.stopPropagation()}
               style={{
-                background: 'white',
+                background: 'var(--card-bg)',
+                color: 'var(--text-primary)',
                 borderTopLeftRadius: 32,
                 borderTopRightRadius: 32,
                 padding: '24px 20px 34px',
                 width: '100%',
                 maxWidth: 390,
-                boxShadow: '0 -10px 25px rgba(0,0,0,0.1)',
+                boxShadow: '0 -10px 25px rgba(0,0,0,0.3)',
                 animation: 'slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards',
                 boxSizing: 'border-box',
+                borderTop: '2px solid var(--border-light)',
               }}
             >
               <div style={{ width: 40, height: 4, borderRadius: 2, background: 'var(--border-light)', margin: '0 auto 20px' }} />
@@ -2824,6 +2920,7 @@ function LogWorkoutContent() {
                       fontSize: 40, fontWeight: 800, textAlign: 'center', border: 'none',
                       outline: 'none', width: '100%', margin: '12px 0', fontFamily: 'monospace',
                       color: 'var(--text-primary)',
+                      background: 'transparent',
                     }}
                   />
 
@@ -2883,6 +2980,7 @@ function LogWorkoutContent() {
                       fontSize: 40, fontWeight: 800, textAlign: 'center', border: 'none',
                       outline: 'none', width: '100%', margin: '12px 0', fontFamily: 'monospace',
                       color: 'var(--text-primary)',
+                      background: 'transparent',
                     }}
                   />
 
@@ -2915,8 +3013,8 @@ function LogWorkoutContent() {
               <button
                 onClick={() => logSetFromSheet(logSheet.exerciseId, logSheet.setIndex, logSheet.weight, logSheet.reps, !!logSheet.isBuddy)}
                 style={{
-                  width: '100%', height: 56, borderRadius: 9999, border: 'none',
-                  background: 'var(--lime)', color: 'var(--text-primary)', fontWeight: 800,
+                  width: '100%', height: 56, borderRadius: 9999, border: '2px solid #111111',
+                  background: '#FFE100', color: '#111111', fontWeight: 800,
                   fontSize: 16, cursor: 'pointer', fontFamily: 'inherit',
                   boxShadow: '0 8px 24px rgba(200,241,53,0.3)',
                 }}
@@ -2946,9 +3044,9 @@ function LogWorkoutContent() {
             <div
               onClick={e => e.stopPropagation()}
               style={{
-                background: 'white', borderRadius: 24, padding: 24,
-                width: '100%', maxWidth: 320, boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)',
-                boxSizing: 'border-box',
+                background: 'var(--card-bg)', color: 'var(--text-primary)', borderRadius: 24, padding: 24,
+                width: '100%', maxWidth: 320, boxShadow: '0 20px 25px -5px rgba(0,0,0,0.3)',
+                boxSizing: 'border-box', border: '2px solid var(--border-light)',
               }}
             >
               <h3 style={{ fontSize: 18, fontWeight: 900, marginBottom: 8, color: 'var(--text-primary)' }}>
@@ -2994,7 +3092,7 @@ function LogWorkoutContent() {
                         <span
                           key={idx}
                           style={{
-                            padding: '4px 10px', borderRadius: 8, background: 'white',
+                            padding: '4px 10px', borderRadius: 8, background: 'var(--card-bg)',
                             border: '1px solid var(--border-light)', fontSize: 12,
                             fontWeight: 700, color: 'var(--text-primary)', boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
                           }}
@@ -3014,8 +3112,8 @@ function LogWorkoutContent() {
               <button
                 onClick={() => setShowPlateCalc(false)}
                 style={{
-                  width: '100%', height: 48, borderRadius: 9999, border: 'none',
-                  background: 'var(--text-primary)', color: 'white', fontWeight: 800,
+                  width: '100%', height: 48, borderRadius: 9999, border: '2px solid #111111',
+                  background: '#FFE100', color: '#111111', fontWeight: 800,
                   fontSize: 14, cursor: 'pointer', fontFamily: 'inherit',
                 }}
               >
@@ -3041,9 +3139,10 @@ function LogWorkoutContent() {
               position: 'fixed',
               top: Math.min(longPressedSet.y, typeof window !== 'undefined' ? window.innerHeight - 120 : longPressedSet.y),
               left: Math.min(longPressedSet.x, typeof window !== 'undefined' ? window.innerWidth - 160 : longPressedSet.x),
-              background: 'white',
+              background: 'var(--card-bg)',
+              color: 'var(--text-primary)',
               borderRadius: 16,
-              boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
+              boxShadow: '0 10px 25px rgba(0,0,0,0.3)',
               border: '1px solid var(--border-light)',
               padding: '6px',
               display: 'flex',
@@ -3093,9 +3192,9 @@ function LogWorkoutContent() {
           <div
             onClick={e => e.stopPropagation()}
             style={{
-              background: 'white', borderRadius: 24, padding: 24,
-              width: '100%', maxWidth: 340, boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)',
-              maxHeight: '80dvh', display: 'flex', flexDirection: 'column',
+              background: 'var(--card-bg)', color: 'var(--text-primary)', borderRadius: 24, padding: 24,
+              width: '100%', maxWidth: 340, boxShadow: '0 20px 25px -5px rgba(0,0,0,0.3)',
+              maxHeight: '80dvh', display: 'flex', flexDirection: 'column', border: '2px solid var(--border-light)',
             }}
           >
             <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 6, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -3124,7 +3223,8 @@ function LogWorkoutContent() {
                     style={{
                       display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px',
                       borderRadius: 14, border: isChosen ? '2px solid #06b6d4' : '1px solid var(--border-light)',
-                      background: isChosen ? 'rgba(6,182,212,0.04)' : (isAlreadyInAnotherSuperset ? 'var(--input-bg)' : 'white'),
+                      background: isChosen ? 'rgba(6,182,212,0.15)' : (isAlreadyInAnotherSuperset ? 'var(--input-bg)' : 'var(--card-bg)'),
+                      color: 'var(--text-primary)',
                       opacity: isAlreadyInAnotherSuperset ? 0.5 : 1,
                       cursor: isAlreadyInAnotherSuperset ? 'default' : 'pointer',
                       fontFamily: 'inherit', textAlign: 'left', width: '100%',
@@ -3133,7 +3233,7 @@ function LogWorkoutContent() {
                     <div style={{
                       width: 20, height: 20, borderRadius: 4,
                       border: '2px solid ' + (isChosen ? '#06b6d4' : 'var(--border-light)'),
-                      background: isChosen ? '#06b6d4' : 'white',
+                      background: isChosen ? '#06b6d4' : 'var(--input-bg)',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                     }}>
                       {isChosen && <span style={{ color: 'white', fontSize: 12, fontWeight: 900 }}>✓</span>}
@@ -3153,8 +3253,8 @@ function LogWorkoutContent() {
               <button
                 onClick={() => setShowAddSupersetModal(false)}
                 style={{
-                  flex: 1, height: 48, borderRadius: 9999, border: '1px solid var(--border-light)',
-                  background: 'white', color: 'var(--text-primary)', fontWeight: 700,
+                  flex: 1, height: 48, borderRadius: 9999, border: '2px solid var(--border-light)',
+                  background: 'var(--input-bg)', color: 'var(--text-primary)', fontWeight: 700,
                   cursor: 'pointer', fontSize: 14, fontFamily: 'inherit',
                 }}
               >
@@ -3175,6 +3275,136 @@ function LogWorkoutContent() {
                 }}
               >
                 Link
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Add Custom Exercise Modal ─── */}
+      {showCustomExerciseModal && (
+        <div
+          onClick={() => setShowCustomExerciseModal(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.6)',
+            backdropFilter: 'blur(8px)',
+            zIndex: 3000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: 'var(--card-bg)',
+              color: 'var(--text-primary)',
+              borderRadius: 24,
+              padding: 24,
+              width: '100%',
+              maxWidth: 360,
+              boxShadow: '0 20px 25px -5px rgba(0,0,0,0.3)',
+              border: '2px solid var(--border-light)',
+            }}
+          >
+            <h3 style={{ fontSize: 18, fontWeight: 900, marginBottom: 16, color: 'var(--text-primary)' }}>
+              Add Custom Exercise
+            </h3>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>
+                EXERCISE NAME
+              </label>
+              <input
+                type="text"
+                value={customName}
+                onChange={e => setCustomName(e.target.value)}
+                placeholder="e.g. Incline Cable Chest Fly"
+                className="input-field"
+                style={{ width: '100%', height: 44, fontSize: 14, borderRadius: 12, background: 'var(--input-bg)', color: 'var(--text-primary)', border: '2px solid var(--border-light)' }}
+              />
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>
+                CATEGORY
+              </label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {(['Push', 'Pull', 'Legs', 'Core', 'Cardio'] as const).map(cat => (
+                  <button
+                    key={cat}
+                    onClick={() => setCustomCategory(cat)}
+                    style={{
+                      padding: '6px 14px',
+                      borderRadius: 9999,
+                      border: customCategory === cat ? '2px solid #111111' : '1px solid var(--border-light)',
+                      background: customCategory === cat ? '#FFE100' : 'var(--input-bg)',
+                      color: customCategory === cat ? '#111111' : 'var(--text-primary)',
+                      fontWeight: 700,
+                      fontSize: 12,
+                      cursor: 'pointer',
+                      fontFamily: 'inherit',
+                    }}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 24 }}>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>
+                  SETS
+                </label>
+                <input
+                  type="number"
+                  value={customSets}
+                  onChange={e => setCustomSets(parseInt(e.target.value) || 1)}
+                  className="input-field"
+                  style={{ width: '100%', height: 44, fontSize: 16, borderRadius: 12, textAlign: 'center', background: 'var(--input-bg)', color: 'var(--text-primary)', border: '2px solid var(--border-light)' }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>
+                  REPS
+                </label>
+                <input
+                  type="number"
+                  value={customReps}
+                  onChange={e => setCustomReps(parseInt(e.target.value) || 1)}
+                  className="input-field"
+                  style={{ width: '100%', height: 44, fontSize: 16, borderRadius: 12, textAlign: 'center', background: 'var(--input-bg)', color: 'var(--text-primary)', border: '2px solid var(--border-light)' }}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => setShowCustomExerciseModal(false)}
+                style={{
+                  flex: 1, height: 44, borderRadius: 9999, border: '1px solid var(--border-light)',
+                  background: 'transparent', color: 'var(--text-secondary)', fontWeight: 700,
+                  fontSize: 14, cursor: 'pointer', fontFamily: 'inherit',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveCustomExercise}
+                disabled={!customName.trim()}
+                style={{
+                  flex: 1, height: 44, borderRadius: 9999, border: '2px solid #111111',
+                  background: customName.trim() ? '#FFE100' : 'var(--input-bg)',
+                  color: customName.trim() ? '#111111' : 'var(--text-secondary)',
+                  fontWeight: 800, fontSize: 14, cursor: customName.trim() ? 'pointer' : 'not-allowed',
+                  fontFamily: 'inherit',
+                }}
+              >
+                Save & Add
               </button>
             </div>
           </div>
