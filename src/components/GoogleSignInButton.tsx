@@ -20,6 +20,11 @@ export function GoogleSignInButton({ className = '' }: GoogleSignInButtonProps) 
       return;
     }
 
+    if (env.isTurnstileConfigured && !captchaToken) {
+      setErrorMessage('Please complete the security verification first.');
+      return;
+    }
+
     setLoading(true);
     setErrorMessage(null);
 
@@ -42,6 +47,8 @@ export function GoogleSignInButton({ className = '' }: GoogleSignInButtonProps) 
       setLoading(false);
     }
   };
+
+  const isButtonDisabled = loading || (env.isTurnstileConfigured && !captchaToken);
 
   return (
     <div
@@ -69,7 +76,7 @@ export function GoogleSignInButton({ className = '' }: GoogleSignInButtonProps) 
       <button
         type="button"
         onClick={handleSignIn}
-        disabled={loading}
+        disabled={isButtonDisabled}
         style={{
           width: '100%',
           display: 'flex',
@@ -77,16 +84,16 @@ export function GoogleSignInButton({ className = '' }: GoogleSignInButtonProps) 
           justifyContent: 'center',
           gap: '12px',
           padding: '14px 20px',
-          backgroundColor: loading ? '#222222' : '#111111',
+          backgroundColor: isButtonDisabled ? '#222222' : '#111111',
           color: '#FFFFFF',
           border: '2px solid var(--border-light, #333333)',
           borderRadius: '14px',
           fontWeight: 800,
           fontSize: '15px',
           fontFamily: 'inherit',
-          cursor: loading ? 'not-allowed' : 'pointer',
-          opacity: loading ? 0.6 : 1,
-          boxShadow: loading ? 'none' : 'var(--shadow-card, 3px 3px 0 #FFE100)',
+          cursor: isButtonDisabled ? 'not-allowed' : 'pointer',
+          opacity: isButtonDisabled ? 0.5 : 1,
+          boxShadow: isButtonDisabled ? 'none' : 'var(--shadow-card, 3px 3px 0 #FFE100)',
           transition: 'all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)',
         }}
       >
