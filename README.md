@@ -69,14 +69,14 @@ Every gym-goer knows the pain: fitness apps that demand expensive monthly subscr
 
 ## Tech Stack
 
-| Layer            | Technology                   | Purpose                                    |
-| ---------------- | ---------------------------- | ------------------------------------------ |
-| **Framework**    | Next.js 16 (App Router)      | Core React-based app framework             |
-| **Language**     | TypeScript 5                 | Safe, type-safe development                |
-| **Database**     | Supabase (PostgreSQL)        | Real-time cloud database & RLS security    |
-| **Auth**         | Supabase Auth (Google OAuth) | 1-click single sign-on                     |
-| **Security**     | Cloudflare Turnstile CAPTCHA | Bot & spam protection                      |
-| **Styling**      | Vanilla CSS                  | Fast, lightweight UI design system         |
+| Layer         | Technology                   | Purpose                                 |
+| ------------- | ---------------------------- | --------------------------------------- |
+| **Framework** | Next.js 16 (App Router)      | Core React-based app framework          |
+| **Language**  | TypeScript 5                 | Safe, type-safe development             |
+| **Database**  | Supabase (PostgreSQL)        | Real-time cloud database & RLS security |
+| **Auth**      | Supabase Auth (Google OAuth) | 1-click single sign-on                  |
+| **Security**  | Cloudflare Turnstile CAPTCHA | Bot & spam protection                   |
+| **Styling**   | Vanilla CSS                  | Fast, lightweight UI design system      |
 
 ## Getting Started
 
@@ -85,17 +85,6 @@ Every gym-goer knows the pain: fitness apps that demand expensive monthly subscr
 - Node.js 18+
 - npm or yarn
 - Supabase Project & Cloudflare Turnstile Keys
-
-### Environment Setup
-
-Create a `.env.local` file in your root folder:
-
-```bash
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
-NEXT_PUBLIC_TURNSTILE_SITE_KEY=your-turnstile-site-key
-TURNSTILE_SECRET_KEY=your-turnstile-secret-key
-```
 
 ### Installation
 
