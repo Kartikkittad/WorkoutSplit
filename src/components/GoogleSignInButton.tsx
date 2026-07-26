@@ -16,12 +16,7 @@ export function GoogleSignInButton({ className = '' }: GoogleSignInButtonProps) 
 
   const handleSignIn = async () => {
     if (!env.isSupabaseConfigured) {
-      setErrorMessage('Supabase credentials missing in .env.local');
-      return;
-    }
-
-    if (env.isTurnstileConfigured && !captchaToken) {
-      setErrorMessage('Please complete the security check above.');
+      setErrorMessage('Sign in service unavailable. Please try again later.');
       return;
     }
 
@@ -39,16 +34,14 @@ export function GoogleSignInButton({ className = '' }: GoogleSignInButtonProps) 
       });
 
       if (error) {
-        setErrorMessage(error.message);
+        setErrorMessage('Authentication failed. Please try again.');
         setLoading(false);
       }
-    } catch (err: unknown) {
-      setErrorMessage(err instanceof Error ? err.message : 'Sign in failed.');
+    } catch {
+      setErrorMessage('Sign in failed. Please try again.');
       setLoading(false);
     }
   };
-
-  const isButtonDisabled = loading || (env.isTurnstileConfigured && !captchaToken);
 
   return (
     <div
@@ -64,22 +57,19 @@ export function GoogleSignInButton({ className = '' }: GoogleSignInButtonProps) 
       className={className}
     >
       {/* Cloudflare Turnstile CAPTCHA */}
-      {env.isTurnstileConfigured && (
-        <TurnstileCaptcha
-          onSuccess={(token) => {
-            setCaptchaToken(token);
-            setErrorMessage(null);
-          }}
-          onExpire={() => setCaptchaToken(null)}
-          onError={() => setErrorMessage('Security check failed. Please refresh.')}
-        />
-      )}
+      <TurnstileCaptcha
+        onSuccess={(token) => {
+          setCaptchaToken(token);
+          setErrorMessage(null);
+        }}
+        onExpire={() => setCaptchaToken(null)}
+      />
 
       {/* Google Sign-In Button */}
       <button
         type="button"
         onClick={handleSignIn}
-        disabled={isButtonDisabled}
+        disabled={loading}
         style={{
           width: '100%',
           display: 'flex',
@@ -87,16 +77,16 @@ export function GoogleSignInButton({ className = '' }: GoogleSignInButtonProps) 
           justifyContent: 'center',
           gap: '12px',
           padding: '14px 20px',
-          backgroundColor: isButtonDisabled ? '#222222' : '#111111',
+          backgroundColor: loading ? '#222222' : '#111111',
           color: '#FFFFFF',
           border: '2px solid var(--border-light, #333333)',
           borderRadius: '14px',
           fontWeight: 800,
           fontSize: '15px',
           fontFamily: 'inherit',
-          cursor: isButtonDisabled ? 'not-allowed' : 'pointer',
-          opacity: isButtonDisabled ? 0.6 : 1,
-          boxShadow: isButtonDisabled ? 'none' : 'var(--shadow-card, 3px 3px 0 #FFE100)',
+          cursor: loading ? 'not-allowed' : 'pointer',
+          opacity: loading ? 0.6 : 1,
+          boxShadow: loading ? 'none' : 'var(--shadow-card, 3px 3px 0 #FFE100)',
           transition: 'all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)',
         }}
       >
