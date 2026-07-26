@@ -711,8 +711,103 @@ input:-webkit-autofill:active {
   padding: 14px 40px;
 }
 
+/* Stats row keeps its rule full-bleed while the figures sit on the measure */
+.landing-stats {
+  position: relative;
+}
+
+.landing-stats::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 100vw;
+  transform: translateX(-50%);
+  border-bottom: 2px solid #111111;
+}
+
+/* One shared content measure for the whole landing page */
+.landing-measure {
+  max-width: 1160px;
+  margin: 0 auto;
+  width: 100%;
+}
+
 .landing-hero {
   padding: 60px 40px 0;
+}
+
+.hero-phone-wrap {
+  transform-origin: bottom center;
+  /* Right edge lands on the same line as the nav's Install button */
+  justify-content: flex-end !important;
+}
+
+/* Secondary hero phone — tucked behind the main one, filling the dead space
+   between the headline and the dashboard */
+.hero-heatmap-phone {
+  position: absolute;
+  left: -216px;
+  bottom: 0;
+  z-index: 1;
+}
+
+@media (max-width: 1100px) {
+  .hero-heatmap-phone {
+    display: none;
+  }
+}
+
+/* Log Workout feature row — the phone is cut flat top and bottom so it
+   runs edge to edge between the section rules */
+.feature-log-row {
+  height: 470px;
+  box-sizing: content-box;
+}
+
+.feature-log-row--progress {
+  height: 550px;
+  padding-top: 48px;
+}
+
+.feature-log-row--rest {
+  height: 444px;
+  padding-top: 48px;
+}
+
+.feature-log-row--tall {
+  height: 492px;
+  padding-top: 48px;
+}
+
+/* Rest timer, zoomed out of the dark session screen */
+.rest-float-timer {
+  top: 283px;
+  left: -36px;
+  right: -36px;
+}
+
+/* Progressive-overload callout, zoomed out of the exercise card */
+.overload-float-target {
+  top: 250px;
+  left: -36px;
+  right: -36px;
+}
+
+/* Log Workout phone — exercise rows break out past both bezels */
+.log-float-exercises {
+  top: 302px;
+  left: -36px;
+  right: -36px;
+}
+
+/* Body Weight card breaks out past both bezels and floats over the phone */
+.hero-float-weight {
+  top: 330px;
+  left: -34px;
+  right: -34px;
+  width: auto !important;
+  animation: heroFloat 5s ease-in-out infinite;
 }
 
 .landing-nav-links {
@@ -742,6 +837,58 @@ input:-webkit-autofill:active {
   .landing-hero {
     padding: 32px 16px 0 !important;
   }
+
+  .hero-phone-wrap {
+    transform: scale(0.9);
+    margin-top: -52px;
+    justify-content: center !important;
+  }
+
+  .hero-float-weight {
+    left: -14px;
+    right: -14px;
+  }
+
+  .log-float-exercises,
+  .overload-float-target,
+  .rest-float-timer {
+    left: -14px;
+    right: -14px;
+  }
+
+  /* Feature rows stack — copy always reads before the phone */
+  .feature-log-row,
+  .feature-log-row--tall,
+  .feature-log-row--rest,
+  .feature-log-row--progress {
+    height: auto;
+    padding-top: 36px;
+    gap: 28px !important;
+  }
+
+  .feature-copy {
+    order: 0 !important;
+    padding: 0 !important;
+  }
+
+  .feature-media {
+    order: 1 !important;
+  }
+
+  /* Section rhythm — match the 16px gutter used by the nav and hero */
+  .landing-steps {
+    padding: 56px 16px !important;
+  }
+
+  .landing-contact {
+    padding: 56px 16px !important;
+  }
+
+  .landing-cta {
+    padding: 56px 16px !important;
+  }
+
+
 
   .landing-nav-links {
     display: none !important;
@@ -784,9 +931,14 @@ input:-webkit-autofill:active {
   100% { transform: translateX(-50%); }
 }
 
+@keyframes heroFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
 @keyframes floaty {
   0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-12px); }
+  50% { transform: translateY(0px); }
 }
 
 @keyframes pulse {
@@ -802,5 +954,19 @@ input:-webkit-autofill:active {
 @keyframes tickerDot {
   0%, 100% { transform: scale(1); opacity: 1; }
   50% { transform: scale(1.4); opacity: 0.6; }
+}
+
+.progressive-card {
+  border: 2px solid var(--text-primary);
+  box-shadow: 4px 4px 0 var(--text-primary);
+}
+
+[data-theme="dark"] .progressive-card {
+  border-color: #FFE100;
+  box-shadow: 4px 4px 0 #FFE100;
+}
+
+[data-theme="dark"] .theme-logo {
+  filter: brightness(0) invert(1);
 }
 

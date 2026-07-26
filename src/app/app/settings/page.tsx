@@ -57,7 +57,34 @@ export default function SettingsPage() {
   return (
     <div style={{ padding: '24px 16px 96px' }}>
       <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 24 }}>Settings</h1>
-      
+
+      {/* About / Beta Notice */}
+      <div className="card" style={{ marginBottom: 24 }}>
+        <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12, color: 'var(--text-secondary)' }}>About</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+          <span
+            style={{
+              background: 'var(--primary)',
+              border: '2px solid var(--border-light)',
+              borderRadius: 999,
+              padding: '3px 10px',
+              fontSize: 10,
+              fontWeight: 800,
+              letterSpacing: '0.08em',
+              color: '#111111',
+            }}
+          >
+            BETA
+          </span>
+          <span style={{ fontSize: 14, fontWeight: 700 }}>Early release</span>
+        </div>
+        <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+          WorkoutSplit is still under active development. Features may change and
+          you may hit the odd bug. Your data stays on this device, so exporting a
+          backup now and then is a good idea.
+        </p>
+      </div>
+
       {/* Profile Section */}
       <div className="card" style={{ marginBottom: 24 }}>
         <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16, color: 'var(--text-secondary)' }}>Profile</h2>

@@ -66,6 +66,71 @@ interface AddedExercise {
 /* -------------------------------------------------- */
 /*  Component                                          */
 /* -------------------------------------------------- */
+
+function ProgressiveOverloadCard({
+  history,
+  weightUnit
+}: {
+  history: { lastWeight: number; lastReps: number; lastSets: number } | null | undefined;
+  weightUnit: string;
+}) {
+  if (!history || history.lastSets === 0) return null;
+  
+  return (
+    <div className="progressive-card" style={{
+      borderRadius: 12,
+      padding: '12px 16px',
+      marginBottom: 16,
+      background: 'var(--card-bg)',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 12
+    }}>
+      <div style={{
+        font: "700 10px 'Space Grotesk', monospace",
+        letterSpacing: '.05em',
+        color: '#A18212',
+        textTransform: 'uppercase'
+      }}>
+        Progressive Overload
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        
+        {/* Left Side: Last */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-secondary)' }}>LAST</span>
+          <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-secondary)' }}>
+            {history.lastWeight} {weightUnit} × {history.lastReps}
+          </span>
+        </div>
+
+        {/* Arrow */}
+        <span style={{ color: 'var(--text-secondary)', fontSize: 16 }}>→</span>
+
+        {/* Middle: Target */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <span style={{ fontSize: 10, fontWeight: 700, color: '#A18212' }}>TARGET</span>
+          <span style={{ fontSize: 18, fontWeight: 900, color: 'var(--text-primary)' }}>
+            {history.lastWeight + 2.5} {weightUnit} × {history.lastReps}
+          </span>
+        </div>
+
+        {/* Right: Pill */}
+        <div style={{
+          background: '#FFE100',
+          border: '2px solid #111111',
+          borderRadius: 999,
+          padding: '4px 10px',
+          font: "700 12px 'Space Grotesk', monospace",
+          color: '#111111'
+        }}>
+          ▲ 2.5
+        </div>
+
+      </div>
+    </div>
+  );
+}
 function LogWorkoutContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -640,7 +705,7 @@ function LogWorkoutContent() {
     } else {
       const history = exerciseHistory[exerciseId];
       if (history) {
-        prefilledWeight = history.lastWeight;
+        prefilledWeight = history.lastWeight > 0 ? history.lastWeight + 2.5 : 0;
         prefilledReps = history.lastReps;
       } else {
         const def = EXERCISES.find(e => e.id === exerciseId);
@@ -1355,7 +1420,9 @@ function LogWorkoutContent() {
                         </span>
                         <span style={{
                           fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 9999,
-                          background: `${ex.color}20`, color: ex.color, flexShrink: 0
+                          background: ex.category === 'Push' ? '#FFE100' : `${ex.color}20`,
+                          color: ex.category === 'Push' ? '#111111' : ex.color,
+                          flexShrink: 0
                         }}>
                           {ex.category}
                         </span>
@@ -1547,9 +1614,7 @@ function LogWorkoutContent() {
                       <>
                         {/* Progressive Overload Hint */}
                         {history && history.lastSets > 0 ? (
-                          <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 12, fontWeight: 500 }}>
-                            Last: {history.lastWeight}{weightUnit} × {history.lastReps} — Target: {history.lastWeight + 2.5}{weightUnit} × {history.lastReps}
-                          </p>
+                          <ProgressiveOverloadCard history={history} weightUnit={weightUnit} />
                         ) : (
                           <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 12, fontWeight: 500, fontStyle: 'italic' }}>
                             First time doing this exercise. Set your baseline!
@@ -1854,13 +1919,11 @@ function LogWorkoutContent() {
                         <div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                             <span style={{ fontWeight: 800, fontSize: 15, color: 'var(--text-primary)' }}>{exA.exerciseName}</span>
-                            <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 9999, background: `${exA.color}15`, color: exA.color }}>{exA.category}</span>
+                            <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 9999, background: exA.category === 'Push' ? '#FFE100' : `${exA.color}15`, color: exA.category === 'Push' ? '#111111' : exA.color }}>{exA.category}</span>
                           </div>
 
                           {historyA && historyA.lastSets > 0 ? (
-                            <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 8, fontWeight: 500 }}>
-                              Last: {historyA.lastWeight}{weightUnit} × {historyA.lastReps} · Target: {historyA.lastWeight + 2.5}{weightUnit} × {historyA.lastReps}
-                            </p>
+                            <ProgressiveOverloadCard history={historyA} weightUnit={weightUnit} />
                           ) : (
                             <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 8, fontStyle: 'italic' }}>Set baseline</p>
                           )}
@@ -1910,13 +1973,11 @@ function LogWorkoutContent() {
                         <div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                             <span style={{ fontWeight: 800, fontSize: 15, color: 'var(--text-primary)' }}>{exB.exerciseName}</span>
-                            <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 9999, background: `${exB.color}15`, color: exB.color }}>{exB.category}</span>
+                            <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 9999, background: exB.category === 'Push' ? '#FFE100' : `${exB.color}15`, color: exB.category === 'Push' ? '#111111' : exB.color }}>{exB.category}</span>
                           </div>
 
                           {historyB && historyB.lastSets > 0 ? (
-                            <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 8, fontWeight: 500 }}>
-                              Last: {historyB.lastWeight}{weightUnit} × {historyB.lastReps} · Target: {historyB.lastWeight + 2.5}{weightUnit} × {historyB.lastReps}
-                            </p>
+                            <ProgressiveOverloadCard history={historyB} weightUnit={weightUnit} />
                           ) : (
                             <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 8, fontStyle: 'italic' }}>Set baseline</p>
                           )}
@@ -3419,15 +3480,13 @@ function LogWorkoutContent() {
           onTouchMove={handleTouchMove}
           style={{
             position: 'fixed',
-            top: 16,
+            bottom: 100,
             left: '50%',
             transform: 'translateX(-50%)',
             zIndex: 1500,
-            background: 'rgba(255, 255, 255, 0.85)',
-            backdropFilter: 'blur(12px)',
-            WebkitBackdropFilter: 'blur(12px)',
-            border: '1px solid var(--border-light)',
-            boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
+            background: 'var(--card-bg)',
+            border: '2px solid var(--text-primary)',
+            boxShadow: '4px 4px 0 var(--text-primary)',
             padding: '10px 24px',
             borderRadius: 9999,
             display: 'flex',

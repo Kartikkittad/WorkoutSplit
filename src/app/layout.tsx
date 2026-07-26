@@ -3,8 +3,8 @@ import './globals.css';
 import { SettingsProvider } from '@/components/SettingsContext';
 
 export const metadata: Metadata = {
-  title: 'WorkoutSplit — Track Your Gains',
-  description: 'Premium workout tracking app with progress analytics and personal records.',
+  title: 'WorkoutSplit — Zero-Guilt Workout Tracking',
+  description: 'Zero-guilt workout tracking for beginners and busy lifters. Progressive overload on autopilot with no streaks or clutter.',
   icons: {
     icon: '/favicon.ico',
     shortcut: '/favicon.ico',

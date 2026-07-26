@@ -6,7 +6,7 @@ import ProgressCircle from '@/components/ProgressCircle';
 import ExerciseCard from '@/components/ExerciseCard';
 import LineChart from '@/components/LineChart';
 import HugeIcon from '@/components/HugeIcon';
-import LogoIcon from '@/components/LogoIcon';
+
 import { EXERCISES } from '@/lib/exercises';
 import { Workout, BodyWeightEntry } from '@/lib/types';
 import { useSettings } from '@/components/SettingsContext';
@@ -323,7 +323,7 @@ export default function HomePage() {
       {/* Page Header — Greeting */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <LogoIcon size={40} />
+          <img src="/logo.png" alt="WorkoutSplit Logo" className="theme-logo" style={{ width: 40, height: 40, objectFit: "contain" }} />
           <div>
             <p className="text-secondary" style={{ marginBottom: 2 }}>{timeGreeting}</p>
             <h1 style={{ fontSize: 22, fontWeight: 700 }}>{personalGreeting}</h1>
