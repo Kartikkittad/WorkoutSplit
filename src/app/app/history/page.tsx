@@ -62,13 +62,13 @@ export default function HistoryPage() {
             style={{
               padding: '10px 20px',
               borderRadius: 9999,
-              border: filter === f.value ? 'none' : '1px solid var(--border-light)',
-              background: filter === f.value ? 'var(--primary)' : 'white',
-              fontWeight: 600,
+              border: filter === f.value ? '2px solid #111111' : '2px solid var(--border-light)',
+              background: filter === f.value ? '#FFE100' : 'var(--card-bg)',
+              fontWeight: 800,
               fontSize: 14,
               cursor: 'pointer',
               fontFamily: 'inherit',
-              color: 'var(--text-primary)',
+              color: filter === f.value ? '#111111' : 'var(--text-primary)',
               transition: 'all 0.15s ease',
             }}
           >

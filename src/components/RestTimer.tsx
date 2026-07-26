@@ -120,7 +120,7 @@ export default function RestTimer({ defaultSeconds = 90, autoStart = false, onCo
             cx={center}
             cy={center}
             r={radius}
-            stroke="#C8F135"
+            stroke="#FFE100"
             strokeWidth={strokeWidth}
             strokeDasharray={circumference}
             strokeDashoffset={offset}

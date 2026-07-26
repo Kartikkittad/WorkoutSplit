@@ -13,7 +13,7 @@ export default function ProgressCircle({
   percentage,
   size = 80,
   strokeWidth = 8,
-  color = '#C8F135',
+  color = '#FFE100',
   bgColor = 'rgba(0,0,0,0.1)',
   children,
 }: ProgressCircleProps) {

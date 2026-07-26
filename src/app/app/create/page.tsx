@@ -254,8 +254,8 @@ export default function CreateSplitPage() {
                 key={preset}
                 onClick={() => addDay(preset)}
                 style={{
-                  padding: '10px 18px', borderRadius: 14, border: '1px solid var(--border-light)',
-                  background: 'white', fontSize: 14, fontWeight: 600,
+                  padding: '10px 18px', borderRadius: 14, border: '2px solid var(--border-light)',
+                  background: 'var(--card-bg)', color: 'var(--text-primary)', fontSize: 14, fontWeight: 800,
                   cursor: 'pointer', fontFamily: 'inherit',
                   display: 'flex', alignItems: 'center', gap: 6,
                 }}
@@ -284,7 +284,7 @@ export default function CreateSplitPage() {
                   padding: '16px', display: 'flex', justifyContent: 'space-between',
                   alignItems: 'center', cursor: 'pointer', border: 'none',
                   fontFamily: 'inherit', textAlign: 'left', width: '100%',
-                  background: day.exerciseIds.length > 0 ? 'rgba(200,241,53,0.08)' : 'white',
+                  background: day.exerciseIds.length > 0 ? 'rgba(255,225,0,0.15)' : 'var(--card-bg)',
                 }}
               >
                 <div>
@@ -296,12 +296,12 @@ export default function CreateSplitPage() {
                   </p>
                 </div>
                 {day.exerciseIds.length > 0 ? (
-                  <svg width={20} height={20} viewBox="0 0 24 24" fill="#7a9a0a">
+                  <svg width={20} height={20} viewBox="0 0 24 24" fill="#FFE100">
                     <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
                   </svg>
                 ) : (
-                  <svg width={18} height={18} viewBox="0 0 24 24" fill="var(--text-secondary)">
-                    <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6-6-6z" />
+                  <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth={2}>
+                    <polyline points="9 18 15 12 9 6" />
                   </svg>
                 )}
               </button>
@@ -316,6 +316,16 @@ export default function CreateSplitPage() {
         const daySupersets = day.supersets || [];
         return (
           <div>
+            <button
+              onClick={() => setEditingDayIndex(null)}
+              style={{
+                border: 'none', background: 'none', color: 'var(--text-secondary)',
+                fontSize: 14, fontWeight: 600, cursor: 'pointer', marginBottom: 16,
+                fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 6,
+              }}
+            >
+              ← Back to days
+            </button>
             <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>
               {day.name} — Select Exercises
             </h2>
@@ -495,7 +505,7 @@ export default function CreateSplitPage() {
                     Select exactly 2 exercises from your selected list to pair them.
                   </p>
 
-                  <div style={{ overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20, paddingRight: 4 }}>
+                  <div className="no-scrollbar" style={{ overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
                     {day.exerciseIds.map(exId => {
                       const exDef = EXERCISES.find(e => e.id === exId);
                       if (!exDef) return null;

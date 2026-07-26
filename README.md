@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="public/icon-192.png" width="100" alt="WorkoutSplit logo" />
+  <img src="public/logo.png" width="110" alt="WorkoutSplit logo" />
 
   <h1>WorkoutSplit</h1>
 
@@ -11,7 +11,7 @@
     <img src="https://img.shields.io/badge/PWA-Ready-purple?style=for-the-badge&logo=pwa" alt="PWA" />
     <img src="https://img.shields.io/badge/CSS-Vanilla-1572B6?style=for-the-badge&logo=css3" alt="CSS" />
     <img src="https://img.shields.io/badge/IndexedDB-Dexie-0F172A?style=for-the-badge&logo=databricks" alt="Dexie" />
-    <img src="https://img.shields.io/badge/Version-v1.0.2-lime?style=for-the-badge" alt="Version" />
+    <img src="https://img.shields.io/badge/Version-v1.1.0-lime?style=for-the-badge" alt="Version" />
   </p>
 
   <p>
@@ -42,23 +42,28 @@ WorkoutSplit uses Dexie.js to store all your data locally in your browser's Inde
 
 ## Features
 
-### 🏋️ Core Tracking
+### 🏋️ Core Tracking & Logging
 
 - **Workout Split Builder**: Design custom workout routines (Push/Pull/Legs, Upper/Lower, or custom days) and set active splits.
 - **Gym-Friendly Logger**: Quick set logging with smooth input sheets designed for one-handed operation on the gym floor.
+- **Set Checkmark Undoing & Weight Editing**: Tap checkmarks `✓` to undo completed sets on-the-fly; tap set weight/reps to edit values instantly.
+- **"Repeat Last Set" & Superset Connector**: Duplicate previous set values in 1-tap and link paired exercise supersets with visual connector badges.
+- **Custom Exercise Creation**: Add custom exercises with category pickers (Push, Pull, Legs, Core, Cardio) persisted to IndexedDB.
 - **Auto Rest Timer**: Floating timer with circular SVG countdown and vibration alerts when your rest finishes.
 - **Plate Calculator**: Tells you exactly what plates to load on the barbell for any given weight target.
 
-### 📈 Progressive Overload
+### 🎨 Visual & Theme System
+
+- **Hugeicons SVG Vector System**: 100% clean vector stroke SVGs tailored to exercise names and muscle categories (0% emojis).
+- **Dual-Theme High Contrast**: Perfect contrast across Light and Dark modes with bold black `#111111` text on yellow `#FFE100` action buttons.
+- **2D Muscle Heatmap**: Interactive 2D muscle group heatmap visualizer to inspect targeted muscle activation.
+- **Custom Scroll Indicators**: Clean scroll container design with hidden browser scrollbars (`no-scrollbar`) and smooth `Scroll ↓` badge indicators.
+
+### 📈 Progressive Overload & Analytics
 
 - **Target Calibration**: Automatically suggests weight and reps based on your last logged session (e.g. `Last: 60kg × 8 · Target: 62.5kg × 8`).
 - **Real-Time PR Detection**: Alerts you with a fullscreen celebration overlay when you hit a new personal record.
-- **Shareable PR Cards**: Generate shareable images built for Instagram and WhatsApp stories.
-
-### 📊 Analytics
-
 - **Custom SVG Analytics**: High-performance interactive line charts showing Max Weight, Volume, and total sets over time.
-- **Body Visualizer & Heatmap**: 3D body visualizer and heatmap to track training frequency and muscle group activation.
 - **Calories Burned Estimation**: MET-based calculation tailored to your body weight and gender.
 
 ### 📋 Management
@@ -72,9 +77,9 @@ WorkoutSplit uses Dexie.js to store all your data locally in your browser's Inde
 | ---------------- | ----------------------- | ---------------------------------- |
 | **Framework**    | Next.js 16 (App Router) | Core React-based app framework     |
 | **Language**     | TypeScript 5            | Safe, type-safe development        |
+| **Icons**        | Hugeicons SVG System    | Tailored vector exercise graphics  |
 | **Styling**      | Vanilla CSS             | Fast, lightweight UI styling       |
 | **Storage**      | Dexie.js (IndexedDB)    | Client-side offline local database |
-| **3D Rendering** | Three.js                | Interactive 3D body visualizer     |
 | **Canvas**       | HTML2Canvas             | PR card image generation           |
 
 ## Getting Started
@@ -115,14 +120,15 @@ npm start
 workoutsplit/
 ├── src/
 │   ├── app/                # Next.js App Router pages
-│   │   ├── page.tsx        # Dashboard
+│   │   ├── page.tsx        # Dashboard & Landing page
 │   │   ├── create/         # Split builder
 │   │   ├── history/        # History page
 │   │   ├── log/            # Active logger
 │   │   ├── progress/       # Analytics & charts
 │   │   └── settings/       # Settings page
 │   ├── components/         # Reusable React components
-│   │   ├── BodyVisualizer3D.tsx
+│   │   ├── HugeIcon.tsx    # Hugeicons SVG vector mapper
+│   │   ├── MuscleHeatmap2D.tsx # 2D Muscle group heatmap
 │   │   ├── LineChart.tsx
 │   │   └── RestTimer.tsx
 │   └── lib/                # Core logic & database
@@ -130,21 +136,24 @@ workoutsplit/
 │       ├── storage.ts      # Data helper methods
 │       └── seed.ts         # Database initialization
 └── public/                 # Static assets & PWA files
+    ├── logo.png            # Main brand logo
+    ├── logo-dark.png       # Dark theme brand logo
+    ├── favicon.ico         # Multi-res favicon
     └── sw.js               # Service worker for offline use
 ```
 
 ## Roadmap
 
-### v1.0.2 (Current Release)
+### v1.1.0 (Current Release)
 
-- [x] Workout split builder & template loader
-- [x] Gym-friendly log sheet
-- [x] Live rest timer with vibrations
-- [x] Real-time PR detection
-- [x] Streak tracking & milestones
-- [x] Buddy Mode session logging
-- [x] Calories burned dashboard
-- [x] Offline PWA capabilities
+- [x] Hugeicons SVG vector component system (0% emojis)
+- [x] Set checkmark undoing & on-the-fly set weight editing
+- [x] Custom exercise creation tool
+- [x] Repeat last set & simplified superset pairing
+- [x] Light & Dark theme color contrast fixes (#111111 text on yellow buttons)
+- [x] 2D Muscle heatmap visualizer
+- [x] Responsive landing page & mobile phone alignment
+- [x] Active workout draft state sync & clean startup layout
 
 ### v2.0.0 (Upcoming)
 

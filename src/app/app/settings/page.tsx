@@ -5,7 +5,7 @@ import { useSettings } from '@/components/SettingsContext';
 import { db } from '@/lib/dexie';
 
 export default function SettingsPage() {
-  const { userName, weightUnit, restTimerDuration, buddyName, updateSettings } = useSettings();
+  const { userName, weightUnit, restTimerDuration, showRestTimer, theme, buddyName, updateSettings } = useSettings();
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [resetting, setResetting] = useState(false);
 
@@ -57,7 +57,34 @@ export default function SettingsPage() {
   return (
     <div style={{ padding: '24px 16px 96px' }}>
       <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 24 }}>Settings</h1>
-      
+
+      {/* About / Beta Notice */}
+      <div className="card" style={{ marginBottom: 24 }}>
+        <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12, color: 'var(--text-secondary)' }}>About</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+          <span
+            style={{
+              background: 'var(--primary)',
+              border: '2px solid var(--border-light)',
+              borderRadius: 999,
+              padding: '3px 10px',
+              fontSize: 10,
+              fontWeight: 800,
+              letterSpacing: '0.08em',
+              color: '#111111',
+            }}
+          >
+            BETA
+          </span>
+          <span style={{ fontSize: 14, fontWeight: 700 }}>Early release</span>
+        </div>
+        <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+          WorkoutSplit is still under active development. Features may change and
+          you may hit the odd bug. Your data stays on this device, so exporting a
+          backup now and then is a good idea.
+        </p>
+      </div>
+
       {/* Profile Section */}
       <div className="card" style={{ marginBottom: 24 }}>
         <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16, color: 'var(--text-secondary)' }}>Profile</h2>
@@ -90,9 +117,39 @@ export default function SettingsPage() {
         <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16, color: 'var(--text-secondary)' }}>App Preferences</h2>
         
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* Theme Mode */}
+          <div>
+            <label style={{ fontSize: 14, fontWeight: 600, display: 'block', marginBottom: 8, color: 'var(--text-primary)' }}>Theme</label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {[
+                { id: 'light', label: '☀️ Light' },
+                { id: 'dark', label: '🌙 Dark' },
+              ].map(t => (
+                <button
+                  key={t.id}
+                  onClick={() => updateSettings({ theme: t.id as 'light' | 'dark' })}
+                  style={{
+                    flex: 1,
+                    padding: '12px',
+                    borderRadius: 12,
+                    border: theme === t.id ? '2px solid #111111' : '2px solid var(--border-light)',
+                    backgroundColor: theme === t.id ? '#FFE100' : 'var(--input-bg)',
+                    color: theme === t.id ? '#111111' : 'var(--text-primary)',
+                    fontWeight: 800,
+                    fontFamily: 'inherit',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Weight Unit */}
           <div>
-            <label style={{ fontSize: 14, fontWeight: 600, display: 'block', marginBottom: 8 }}>Weight Unit</label>
+            <label style={{ fontSize: 14, fontWeight: 600, display: 'block', marginBottom: 8, color: 'var(--text-primary)' }}>Weight Unit</label>
             <div style={{ display: 'flex', gap: 8 }}>
               {['kg', 'lbs'].map(unit => (
                 <button
@@ -102,10 +159,10 @@ export default function SettingsPage() {
                     flex: 1,
                     padding: '10px',
                     borderRadius: 12,
-                    border: '1px solid',
-                    borderColor: weightUnit === unit ? 'var(--lime)' : 'var(--border)',
-                    backgroundColor: weightUnit === unit ? 'rgba(200, 241, 53, 0.1)' : 'transparent',
-                    fontWeight: 600,
+                    border: weightUnit === unit ? '2px solid #111111' : '2px solid var(--border-light)',
+                    backgroundColor: weightUnit === unit ? '#FFE100' : 'var(--input-bg)',
+                    color: weightUnit === unit ? '#111111' : 'var(--text-primary)',
+                    fontWeight: 800,
                     textTransform: 'uppercase',
                     fontFamily: 'inherit',
                     cursor: 'pointer',
@@ -118,33 +175,57 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {/* Rest Timer Duration */}
-          <div>
-            <label style={{ fontSize: 14, fontWeight: 600, display: 'block', marginBottom: 8 }}>Default Rest Timer</label>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {[30, 60, 90, 120].map(duration => (
-                <button
-                  key={duration}
-                  onClick={() => updateSettings({ restTimerDuration: duration })}
-                  style={{
-                    flex: 1,
-                    minWidth: '20%',
-                    padding: '10px',
-                    borderRadius: 12,
-                    border: '1px solid',
-                    borderColor: restTimerDuration === duration ? 'var(--lime)' : 'var(--border)',
-                    backgroundColor: restTimerDuration === duration ? 'rgba(200, 241, 53, 0.1)' : 'transparent',
-                    fontWeight: 600,
-                    fontFamily: 'inherit',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
-                  }}
-                >
-                  {duration}s
-                </button>
-              ))}
+          {/* Rest Timer Toggle */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0' }}>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>Enable Rest Timer</div>
+              <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Auto-countdown after completing a set</div>
             </div>
+            <button
+              onClick={() => updateSettings({ showRestTimer: !showRestTimer })}
+              style={{
+                width: 50, height: 28, borderRadius: 999, border: '2px solid var(--border-light)',
+                background: showRestTimer ? '#FFE100' : 'var(--input-bg)',
+                position: 'relative', cursor: 'pointer', transition: 'all 0.2s'
+              }}
+            >
+              <div style={{
+                width: 20, height: 20, borderRadius: '50%', background: showRestTimer ? '#111111' : 'var(--text-secondary)',
+                position: 'absolute', top: 2, left: showRestTimer ? 24 : 2,
+                transition: 'all 0.2s'
+              }} />
+            </button>
           </div>
+
+          {/* Rest Timer Duration */}
+          {showRestTimer && (
+            <div>
+              <label style={{ fontSize: 14, fontWeight: 600, display: 'block', marginBottom: 8, color: 'var(--text-primary)' }}>Default Rest Timer Duration</label>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {[30, 60, 90, 120].map(duration => (
+                  <button
+                    key={duration}
+                    onClick={() => updateSettings({ restTimerDuration: duration })}
+                    style={{
+                      flex: 1,
+                      minWidth: '20%',
+                      padding: '10px',
+                      borderRadius: 12,
+                      border: restTimerDuration === duration ? '2px solid #111111' : '2px solid var(--border-light)',
+                      backgroundColor: restTimerDuration === duration ? '#FFE100' : 'var(--input-bg)',
+                      color: restTimerDuration === duration ? '#111111' : 'var(--text-primary)',
+                      fontWeight: 800,
+                      fontFamily: 'inherit',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    {duration}s
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -158,9 +239,10 @@ export default function SettingsPage() {
             style={{
               padding: '12px',
               borderRadius: 12,
-              border: '1px solid var(--border)',
-              backgroundColor: 'transparent',
-              fontWeight: 600,
+              border: '2px solid var(--border-light)',
+              backgroundColor: 'var(--input-bg)',
+              color: 'var(--text-primary)',
+              fontWeight: 700,
               fontFamily: 'inherit',
               cursor: 'pointer',
               display: 'flex',

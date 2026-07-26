@@ -68,7 +68,7 @@ function formatTick(val: number): string {
 
 export default function LineChart({
   data,
-  color = '#C8F135',
+  color = '#FFE100',
   height = 220,
   title,
   hideAxes = false,
