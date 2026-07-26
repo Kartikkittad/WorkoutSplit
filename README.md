@@ -8,10 +8,10 @@
   <p>
     <img src="https://img.shields.io/badge/Next.js-16-black?style=for-the-badge&logo=next.js" alt="Next.js" />
     <img src="https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript" alt="TypeScript" />
+    <img src="https://img.shields.io/badge/Supabase-PostgreSQL-3ECF8E?style=for-the-badge&logo=supabase" alt="Supabase" />
+    <img src="https://img.shields.io/badge/Google-Auth-4285F4?style=for-the-badge&logo=google" alt="Google Auth" />
+    <img src="https://img.shields.io/badge/Cloudflare-Turnstile-F38020?style=for-the-badge&logo=cloudflare" alt="Cloudflare Turnstile" />
     <img src="https://img.shields.io/badge/PWA-Ready-purple?style=for-the-badge&logo=pwa" alt="PWA" />
-    <img src="https://img.shields.io/badge/CSS-Vanilla-1572B6?style=for-the-badge&logo=css3" alt="CSS" />
-    <img src="https://img.shields.io/badge/IndexedDB-Dexie-0F172A?style=for-the-badge&logo=databricks" alt="Dexie" />
-    <img src="https://img.shields.io/badge/Version-v1.1.0-lime?style=for-the-badge" alt="Version" />
   </p>
 
   <p>
@@ -23,22 +23,17 @@
 
 ## The Problem
 
-Every gym-goer knows the pain: fitness apps that demand expensive monthly subscriptions, harvest personal data, require account creation, bombard you with ads between sets, and weigh in at hundreds of megabytes. On the other hand, logging workouts in a plain Notes app is tedious, manual, and does not calculate progressive overload or track personal records automatically.
+Every gym-goer knows the pain: fitness apps that demand expensive monthly subscriptions, harvest personal data, bombard you with ads between sets, and weigh in at hundreds of megabytes. On the other hand, logging workouts in a plain Notes app is tedious, manual, and does not calculate progressive overload or track personal records automatically.
 
 ## The Solution
 
-**WorkoutSplit** is a free, open-source, privacy-first, offline-first Progressive Web App (PWA) designed to do one thing exceptionally well: **track your workouts**. There are no accounts, no cloud dependencies, and zero ads. The entire application is under 1MB, installs directly to your phone's home screen, and works fully offline in areas of the gym with poor or no cellular reception.
+**WorkoutSplit** is a free, high-performance Progressive Web App (PWA) designed to do one thing exceptionally well: **track your workouts**. Powered by **Supabase PostgreSQL** for real-time cloud sync and 1-click **Google Sign-In** protected by **Cloudflare Turnstile**, your workout history, custom splits, and personal records sync seamlessly across all your devices.
 
 ## Who is this for
 
 - **Serious lifters** who want a fast, distraction-free logging tool on the gym floor.
-- **Privacy-conscious athletes** who want all of their personal training logs to stay securely on their own device.
-- **Gym-goers in poor signal areas** who need reliable offline functionality.
-- **Training partners** who want to leverage the built-in Buddy Mode to log workouts together.
-
-## How it works
-
-WorkoutSplit uses Dexie.js to store all your data locally in your browser's IndexedDB. Everything runs client-side inside your browser sandbox. When you construct a split or log a session, the data stays on your device. You can track progress, view interactive charts, or export history to CSV without ever making network requests. If you use Buddy Mode, the app logs sets for both you and your partner side-by-side, saving individual sessions under separate profiles.
+- **Athletes who want seamless multi-device sync** without manual export/import hassles.
+- **Gym-goers** who want quick, 1-click Google authentication protected against spam.
 
 ## Features
 
@@ -48,39 +43,40 @@ WorkoutSplit uses Dexie.js to store all your data locally in your browser's Inde
 - **Gym-Friendly Logger**: Quick set logging with smooth input sheets designed for one-handed operation on the gym floor.
 - **Set Checkmark Undoing & Weight Editing**: Tap checkmarks `✓` to undo completed sets on-the-fly; tap set weight/reps to edit values instantly.
 - **"Repeat Last Set" & Superset Connector**: Duplicate previous set values in 1-tap and link paired exercise supersets with visual connector badges.
-- **Custom Exercise Creation**: Add custom exercises with category pickers (Push, Pull, Legs, Core, Cardio) persisted to IndexedDB.
+- **Custom Exercise Creation**: Add custom exercises with category pickers (Push, Pull, Legs, Core, Cardio).
 - **Auto Rest Timer**: Floating timer with circular SVG countdown and vibration alerts when your rest finishes.
 - **Plate Calculator**: Tells you exactly what plates to load on the barbell for any given weight target.
 
+### 🔒 Cloud Sync & Security
+
+- **1-Click Google Sign-In**: Instant login via Supabase OAuth.
+- **Cloudflare Turnstile CAPTCHA**: Non-intrusive bot protection to keep authentication secure and spam-free.
+- **PostgreSQL Database Storage**: All workouts, routines, splits, and records saved securely with Row Level Security (RLS).
+- **Theme-Aware Profile Avatars**: Seamless user profile cards with referrer-safe Google avatar integration.
+
 ### 🎨 Visual & Theme System
 
-- **Hugeicons SVG Vector System**: 100% clean vector stroke SVGs tailored to exercise names and muscle categories (0% emojis).
+- **Hugeicons SVG Vector System**: 100% clean vector stroke SVGs tailored to exercise names and muscle categories.
 - **Dual-Theme High Contrast**: Perfect contrast across Light and Dark modes with bold black `#111111` text on yellow `#FFE100` action buttons.
 - **2D Muscle Heatmap**: Interactive 2D muscle group heatmap visualizer to inspect targeted muscle activation.
-- **Custom Scroll Indicators**: Clean scroll container design with hidden browser scrollbars (`no-scrollbar`) and smooth `Scroll ↓` badge indicators.
 
 ### 📈 Progressive Overload & Analytics
 
 - **Target Calibration**: Automatically suggests weight and reps based on your last logged session (e.g. `Last: 60kg × 8 · Target: 62.5kg × 8`).
-- **Real-Time PR Detection**: Alerts you with a fullscreen celebration overlay when you hit a new personal record.
+- **Real-Time PR Detection**: Alerts you with a celebration overlay when you hit a new personal record.
 - **Custom SVG Analytics**: High-performance interactive line charts showing Max Weight, Volume, and total sets over time.
 - **Calories Burned Estimation**: MET-based calculation tailored to your body weight and gender.
 
-### 📋 Management
-
-- **Workout Templates**: Save completed workouts as templates to load in a single tap later.
-- **Export/Import**: Full export to CSV so you retain complete ownership of your data.
-
 ## Tech Stack
 
-| Layer            | Technology              | Purpose                            |
-| ---------------- | ----------------------- | ---------------------------------- |
-| **Framework**    | Next.js 16 (App Router) | Core React-based app framework     |
-| **Language**     | TypeScript 5            | Safe, type-safe development        |
-| **Icons**        | Hugeicons SVG System    | Tailored vector exercise graphics  |
-| **Styling**      | Vanilla CSS             | Fast, lightweight UI styling       |
-| **Storage**      | Dexie.js (IndexedDB)    | Client-side offline local database |
-| **Canvas**       | HTML2Canvas             | PR card image generation           |
+| Layer            | Technology                   | Purpose                                    |
+| ---------------- | ---------------------------- | ------------------------------------------ |
+| **Framework**    | Next.js 16 (App Router)      | Core React-based app framework             |
+| **Language**     | TypeScript 5                 | Safe, type-safe development                |
+| **Database**     | Supabase (PostgreSQL)        | Real-time cloud database & RLS security    |
+| **Auth**         | Supabase Auth (Google OAuth) | 1-click single sign-on                     |
+| **Security**     | Cloudflare Turnstile CAPTCHA | Bot & spam protection                      |
+| **Styling**      | Vanilla CSS                  | Fast, lightweight UI design system         |
 
 ## Getting Started
 
@@ -88,89 +84,37 @@ WorkoutSplit uses Dexie.js to store all your data locally in your browser's Inde
 
 - Node.js 18+
 - npm or yarn
+- Supabase Project & Cloudflare Turnstile Keys
+
+### Environment Setup
+
+Create a `.env.local` file in your root folder:
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+NEXT_PUBLIC_TURNSTILE_SITE_KEY=your-turnstile-site-key
+TURNSTILE_SECRET_KEY=your-turnstile-secret-key
+```
 
 ### Installation
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/workoutsplit.git
-   cd workoutsplit
+   git clone https://github.com/Kartikkittad/WorkoutSplit.git
+   cd WorkoutSplit
    ```
 2. Install dependencies:
    ```bash
    npm install
    ```
-3. Run the development server:
+3. Run SQL Migrations:
+   Copy the queries in `supabase/migrations/00001_initial_schema.sql` and run them in your Supabase Dashboard SQL Editor.
+4. Run the development server:
    ```bash
    npm run dev
    ```
-4. Open the application in your browser:
-   [http://localhost:3000](http://localhost:3000)
-
-### Build for Production
-
-```bash
-npm run build
-npm start
-```
-
-## Project Structure
-
-```text
-workoutsplit/
-├── src/
-│   ├── app/                # Next.js App Router pages
-│   │   ├── page.tsx        # Dashboard & Landing page
-│   │   ├── create/         # Split builder
-│   │   ├── history/        # History page
-│   │   ├── log/            # Active logger
-│   │   ├── progress/       # Analytics & charts
-│   │   └── settings/       # Settings page
-│   ├── components/         # Reusable React components
-│   │   ├── HugeIcon.tsx    # Hugeicons SVG vector mapper
-│   │   ├── MuscleHeatmap2D.tsx # 2D Muscle group heatmap
-│   │   ├── LineChart.tsx
-│   │   └── RestTimer.tsx
-│   └── lib/                # Core logic & database
-│       ├── dexie.ts        # IndexedDB setup
-│       ├── storage.ts      # Data helper methods
-│       └── seed.ts         # Database initialization
-└── public/                 # Static assets & PWA files
-    ├── logo.png            # Main brand logo
-    ├── logo-dark.png       # Dark theme brand logo
-    ├── favicon.ico         # Multi-res favicon
-    └── sw.js               # Service worker for offline use
-```
-
-## Roadmap
-
-### v1.1.0 (Current Release)
-
-- [x] Hugeicons SVG vector component system (0% emojis)
-- [x] Set checkmark undoing & on-the-fly set weight editing
-- [x] Custom exercise creation tool
-- [x] Repeat last set & simplified superset pairing
-- [x] Light & Dark theme color contrast fixes (#111111 text on yellow buttons)
-- [x] 2D Muscle heatmap visualizer
-- [x] Responsive landing page & mobile phone alignment
-- [x] Active workout draft state sync & clean startup layout
-
-### v2.0.0 (Upcoming)
-
-- [ ] Cloud sync backup via Supabase
-- [ ] Real-time local Bluetooth sync with training buddy
-- [ ] Apple Health & Google Fit connections
-- [ ] Smart progression analytics with AI-driven suggestions
-
-## Contributing
-
-Contributions are always welcome! If you want to contribute:
-
-1. Fork this repository.
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`).
-3. Commit your changes (`git commit -m 'feat: Add some AmazingFeature'`).
-4. Push to the branch (`git push origin feature/AmazingFeature`).
-5. Open a Pull Request.
+5. Open the application: [http://localhost:3000](http://localhost:3000)
 
 ## License
 
@@ -178,5 +122,4 @@ Distributed under the MIT License. See [LICENSE](LICENSE) for details.
 
 <div align="center">
   <p>Built with 💪 by Kartik Kittad</p>
-  <p>If you find this project helpful, please consider leaving a ⭐ on GitHub!</p>
 </div>

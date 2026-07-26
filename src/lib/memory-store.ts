@@ -5,6 +5,7 @@
  */
 
 import { Workout } from './types';
+import { env } from '@/lib/env';
 
 let workouts: Workout[] = [];
 let nextWorkoutId = 1;
@@ -12,7 +13,7 @@ let nextExerciseId = 1;
 let nextSetId = 1;
 
 export function isMemoryMode(): boolean {
-  return !process.env.DATABASE_URL;
+  return !env.isDatabaseConfigured;
 }
 
 export function getWorkouts(): Workout[] {

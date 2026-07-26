@@ -892,13 +892,6 @@ function LogWorkoutContent() {
       color: categoryColors[customCategory] || '#FFE100',
     };
 
-    try {
-      const { db } = await import('@/lib/dexie');
-      await db.exercises_library.put(newDef);
-    } catch (err) {
-      console.error('Error saving custom exercise', err);
-    }
-
     addExercise(newDef);
     setShowCustomExerciseModal(false);
     setCustomName('');
