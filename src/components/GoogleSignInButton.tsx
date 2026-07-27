@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { TurnstileCaptcha } from './TurnstileCaptcha';
 import { env, getAppOrigin } from '@/lib/env';
@@ -10,9 +11,42 @@ interface GoogleSignInButtonProps {
 }
 
 export function GoogleSignInButton({ className = '' }: GoogleSignInButtonProps) {
+  const router = useRouter();
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Listen for login completion from OAuth callback window/tab
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleAuthSuccess = () => {
+      router.replace('/app');
+    };
+
+    let bc: BroadcastChannel | null = null;
+    if (typeof BroadcastChannel !== 'undefined') {
+      bc = new BroadcastChannel('auth_channel');
+      bc.onmessage = (event) => {
+        if (event.data?.type === 'LOGIN_SUCCESS') {
+          handleAuthSuccess();
+        }
+      };
+    }
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'auth_login_timestamp') {
+        handleAuthSuccess();
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+
+    return () => {
+      if (bc) bc.close();
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, [router]);
+
 
   const handleSignIn = async () => {
     if (!env.isSupabaseConfigured) {
