@@ -9,6 +9,8 @@ export const env = {
   NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
   NEXT_PUBLIC_TURNSTILE_SITE_KEY: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || '',
 
+  NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL || '',
+
   // Server-side Only Variables
   TURNSTILE_SECRET_KEY: process.env.TURNSTILE_SECRET_KEY || '',
   DATABASE_URL: process.env.DATABASE_URL || '',
@@ -26,6 +28,29 @@ export const env = {
   ),
   isTurnstileConfigured: Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY),
 };
+
+/**
+ * Resolves the base origin URL for OAuth redirects and absolute routing.
+ */
+export function getAppOrigin(): string {
+  let siteUrl =
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    process.env.NEXT_PUBLIC_VERCEL_URL ||
+    process.env.URL ||
+    '';
+
+  if (siteUrl) {
+    siteUrl = siteUrl.includes('http') ? siteUrl : `https://${siteUrl}`;
+    return siteUrl.replace(/\/$/, '');
+  }
+
+  if (typeof window !== 'undefined' && window.location.origin) {
+    return window.location.origin.replace(/\/$/, '');
+  }
+
+  return 'http://localhost:3000';
+}
+
 
 /**
  * Validate that mandatory variables are defined.

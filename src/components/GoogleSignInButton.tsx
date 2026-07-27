@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { TurnstileCaptcha } from './TurnstileCaptcha';
-import { env } from '@/lib/env';
+import { env, getAppOrigin } from '@/lib/env';
 
 interface GoogleSignInButtonProps {
   className?: string;
@@ -30,13 +30,15 @@ export function GoogleSignInButton({ className = '' }: GoogleSignInButtonProps) 
 
     try {
       const supabase = createClient();
+      const origin = getAppOrigin();
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           queryParams: captchaToken ? { captchaToken } : undefined,
-          redirectTo: `${window.location.origin}/auth/callback?next=/app`,
+          redirectTo: `${origin}/auth/callback?next=/app`,
         },
       });
+
 
       if (error) {
         setErrorMessage('Authentication failed. Please try again.');
