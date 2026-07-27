@@ -21,6 +21,20 @@ export default function SettingsPage() {
   const [resetting, setResetting] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [notifPermission, setNotifPermission] = useState<string>('default');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      setNotifPermission(Notification.permission);
+    }
+  }, []);
+
+  const handleEnableNotifications = async () => {
+    const { requestNotificationPermission } = await import('@/lib/restNotifier');
+    const perm = await requestNotificationPermission();
+    setNotifPermission(perm);
+  };
+
 
   useEffect(() => {
     const supabase = createClient();
@@ -484,8 +498,51 @@ export default function SettingsPage() {
                   </button>
                 ))}
               </div>
+
+              {/* Phone Rest Notifications */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  paddingTop: 16,
+                  borderTop: "1px solid var(--border-light)",
+                  marginTop: 16,
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
+                    Phone Notifications
+                  </div>
+                  <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                    {notifPermission === 'granted'
+                      ? 'Active — phone alerts when rest finishes'
+                      : notifPermission === 'denied'
+                      ? 'Blocked in browser settings'
+                      : 'Get live timer notification & completion alert'}
+                  </div>
+                </div>
+                {notifPermission !== 'granted' && notifPermission !== 'unsupported' && (
+                  <button
+                    onClick={handleEnableNotifications}
+                    style={{
+                      padding: "8px 16px",
+                      borderRadius: 12,
+                      border: "2px solid #111111",
+                      background: "#FFE100",
+                      color: "#111111",
+                      fontWeight: 800,
+                      fontSize: 12,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Enable
+                  </button>
+                )}
+              </div>
             </div>
           )}
+
         </div>
       </div>
 
