@@ -34,7 +34,7 @@ export function GoogleSignInButton({ className = '' }: GoogleSignInButtonProps) 
         provider: 'google',
         options: {
           queryParams: captchaToken ? { captchaToken } : undefined,
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: `${window.location.origin}/auth/callback?next=/app`,
         },
       });
 

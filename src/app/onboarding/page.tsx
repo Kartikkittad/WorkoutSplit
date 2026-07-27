@@ -59,14 +59,21 @@ export default function OnboardingPage() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [name, setName] = useState('');
   const [gender, setGender] = useState<'male' | 'female' | null>(null);
-  const { updateSettings, theme } = useSettings();
+  const { updateSettings, onboardingComplete, loading } = useSettings();
   const router = useRouter();
   const [allowed, setAllowed] = useState(false);
 
   useEffect(() => {
-    // Onboarding is available both in the installed PWA and in a browser tab.
+    if (!loading && onboardingComplete) {
+      router.replace('/app');
+      return;
+    }
     setAllowed(true);
-  }, [router]);
+  }, [loading, onboardingComplete, router]);
+
+  if (loading || onboardingComplete) {
+    return <div style={{ background: '#0F172A', minHeight: '100vh', width: '100vw' }} />;
+  }
 
   const totalSlides = 4;
 
