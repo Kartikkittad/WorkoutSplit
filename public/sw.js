@@ -1,4 +1,4 @@
-const CACHE_NAME = 'workoutsplit-v1';
+const CACHE_NAME = 'workoutsplit-v2';
 const PRECACHE_URLS = [
   '/',
   '/app',

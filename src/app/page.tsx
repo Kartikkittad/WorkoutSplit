@@ -111,7 +111,6 @@ export default function LandingPage() {
   const router = useRouter();
   const [platform, setPlatform] = useState<Platform>("ios");
   const [mounted, setMounted] = useState(false);
-  const [isPwa, setIsPwa] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -124,18 +123,13 @@ export default function LandingPage() {
 
     // Skip landing if running inside standalone PWA
     if (isStandalone()) {
-      setIsPwa(true);
-      router.replace("/app");
+      const obComplete = localStorage.getItem("onboarding_complete") === "true";
+      router.replace(obComplete ? "/app" : "/onboarding");
     }
-
   }, [router]);
 
-
-  if (isPwa) {
-    return <div style={{ background: "#0F172A", minHeight: "100vh", width: "100vw" }} />;
-  }
-
   const scrollToInstall = useCallback(() => {
+
     document.getElementById("steps")?.scrollIntoView({ behavior: "smooth" });
   }, []);
 
