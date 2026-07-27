@@ -135,13 +135,13 @@ export default function LandingPage() {
     "No guilt trips",
     "No subscriptions",
     "No ads",
-    "No account",
+    "1-Click Cloud Sync",
     "Skip days freely",
     "It still works",
     "No guilt trips",
     "No subscriptions",
     "No ads",
-    "No account",
+    "Google Sign-In",
     "Skip days freely",
     "It still works",
   ];
@@ -717,7 +717,7 @@ export default function LandingPage() {
               {
                 n: "1",
                 t: "Install it",
-                b: "Add to your home screen straight from the browser. No app store, no account, no email. Under 5 seconds.",
+                b: "Add to your home screen straight from the browser. No app store required. Fast 1-click Google sign-in.",
               },
               {
                 n: "2",
@@ -891,7 +891,7 @@ export default function LandingPage() {
               color: "#aaaaaa",
             }}
           >
-            Free . No account. No ads. Your data stays on your phone.
+            Free. 1-Click Cloud Sync. No ads. Your data is synced securely in the cloud.
           </p>
           <button
             onClick={scrollToInstall}

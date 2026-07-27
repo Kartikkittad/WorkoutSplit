@@ -1,13 +1,14 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { db } from '@/lib/dexie';
+import { createClient } from '@/lib/supabase/client';
+import { env } from '@/lib/env';
 
 interface SettingsState {
   userName: string;
   userGender: 'male' | 'female' | null;
   weightUnit: 'kg' | 'lbs';
-  restTimerDuration: number; // in seconds
+  restTimerDuration: number;
   showRestTimer: boolean;
   theme: 'light' | 'dark';
   onboardingComplete: boolean;
@@ -34,28 +35,14 @@ const SettingsContext = createContext<SettingsContextType | null>(null);
 
 const isBrowser = typeof window !== 'undefined';
 
-const getInitialSettings = (): SettingsState => {
-  const name = isBrowser ? localStorage.getItem('user_name') || 'Athlete' : 'Athlete';
-  const gender = isBrowser ? (localStorage.getItem('user_gender') as any) || null : null;
-  const obComplete = isBrowser ? localStorage.getItem('onboarding_complete') === 'true' : false;
-  const buddyName = isBrowser ? localStorage.getItem('buddy_name') || '' : '';
-  const theme = isBrowser ? (localStorage.getItem('app_theme') as 'light' | 'dark') || 'light' : 'light';
-  const showRestTimer = isBrowser ? localStorage.getItem('show_rest_timer') !== 'false' : true;
-
-  return {
-    userName: name,
-    userGender: gender,
-    weightUnit: 'kg',
-    restTimerDuration: 60,
-    showRestTimer,
-    theme,
-    onboardingComplete: obComplete,
-    buddyName: buddyName,
-  };
-};
-
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
-  const [settings, setSettings] = useState<SettingsState>(getInitialSettings);
+  const [settings, setSettings] = useState<SettingsState>(() => {
+    const lsComplete = isBrowser ? localStorage.getItem('onboarding_complete') === 'true' : false;
+    return {
+      ...defaultSettings,
+      onboardingComplete: lsComplete,
+    };
+  });
   const [loading, setLoading] = useState(true);
 
   // Apply theme to HTML root element
@@ -65,52 +52,59 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     }
   }, [settings.theme]);
 
+  // Load settings from Supabase on mount
   useEffect(() => {
     async function loadSettings() {
+      if (!env.isSupabaseConfigured) {
+        setLoading(false);
+        return;
+      }
+
       try {
-        const allSettings = await db.settings.toArray();
-        const settingsMap: Record<string, any> = {};
-        for (const s of allSettings) {
-          settingsMap[s.key] = s.value;
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (user) {
+          const lsComplete = isBrowser ? localStorage.getItem('onboarding_complete') === 'true' : false;
+          const metaComplete = Boolean(user.user_metadata?.onboarding_complete);
+
+          const { data } = await supabase
+            .from('user_settings')
+            .select('*')
+            .eq('user_id', user.id)
+            .maybeSingle();
+
+          if (data) {
+            const isComplete = Boolean(data.onboarding_complete || metaComplete || lsComplete);
+            setSettings({
+              userName: data.user_name || user.user_metadata?.full_name || 'Athlete',
+              userGender: data.user_gender || null,
+              weightUnit: data.weight_unit || 'kg',
+              restTimerDuration: data.rest_timer_duration || 60,
+              showRestTimer: data.show_rest_timer ?? true,
+              theme: data.theme || 'light',
+              onboardingComplete: isComplete,
+              buddyName: data.buddy_name || '',
+            });
+            if (isBrowser) {
+              localStorage.setItem('onboarding_complete', isComplete ? 'true' : 'false');
+            }
+          } else {
+            const isComplete = Boolean(metaComplete || lsComplete);
+            setSettings((prev) => ({
+              ...prev,
+              userName: user.user_metadata?.full_name || 'Athlete',
+              onboardingComplete: isComplete,
+            }));
+          }
         }
-
-        const lsName = localStorage.getItem('user_name');
-        const lsGender = localStorage.getItem('user_gender') as 'male' | 'female' | null;
-        const lsComplete = localStorage.getItem('onboarding_complete') === 'true';
-        const lsBuddy = localStorage.getItem('buddy_name');
-        const lsTheme = (localStorage.getItem('app_theme') as 'light' | 'dark') || 'light';
-        const lsRestTimer = localStorage.getItem('show_rest_timer') !== 'false';
-
-        const userName = settingsMap.user_name || settingsMap.name || lsName || settings.userName;
-        const userGender = settingsMap.user_gender || lsGender || settings.userGender;
-        const onboardingComplete = settingsMap.onboarding_complete === true || lsComplete;
-        const buddyName = settingsMap.buddy_name || lsBuddy || '';
-        const theme = settingsMap.theme || lsTheme;
-        const showRestTimer = settingsMap.showRestTimer !== undefined ? settingsMap.showRestTimer : lsRestTimer;
-
-        setSettings({
-          userName,
-          userGender,
-          weightUnit: settingsMap.weightUnit || settings.weightUnit,
-          restTimerDuration: settingsMap.restTimerDuration || settings.restTimerDuration,
-          showRestTimer,
-          theme,
-          onboardingComplete,
-          buddyName,
-        });
-
-        localStorage.setItem('user_name', userName);
-        if (userGender) localStorage.setItem('user_gender', userGender);
-        localStorage.setItem('onboarding_complete', onboardingComplete ? 'true' : 'false');
-        localStorage.setItem('buddy_name', buddyName);
-        localStorage.setItem('app_theme', theme);
-        localStorage.setItem('show_rest_timer', showRestTimer ? 'true' : 'false');
       } catch (err) {
-        console.error('Failed to load settings from Dexie:', err);
+        console.error('Failed to load settings from Supabase:', err);
       } finally {
         setLoading(false);
       }
     }
+
     loadSettings();
   }, []);
 
@@ -118,40 +112,39 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     const updated = { ...settings, ...partial };
     setSettings(updated);
 
+    if (isBrowser && partial.onboardingComplete !== undefined) {
+      localStorage.setItem('onboarding_complete', partial.onboardingComplete ? 'true' : 'false');
+    }
+
+    if (!env.isSupabaseConfigured) return;
+
     try {
-      if (partial.userName !== undefined) {
-        await db.settings.put({ key: 'user_name', value: partial.userName });
-        await db.settings.put({ key: 'name', value: partial.userName });
-        localStorage.setItem('user_name', partial.userName);
-      }
-      if (partial.userGender !== undefined) {
-        await db.settings.put({ key: 'user_gender', value: partial.userGender });
-        localStorage.setItem('user_gender', partial.userGender || '');
-      }
-      if (partial.weightUnit !== undefined) {
-        await db.settings.put({ key: 'weightUnit', value: partial.weightUnit });
-      }
-      if (partial.restTimerDuration !== undefined) {
-        await db.settings.put({ key: 'restTimerDuration', value: partial.restTimerDuration });
-      }
-      if (partial.showRestTimer !== undefined) {
-        await db.settings.put({ key: 'showRestTimer', value: partial.showRestTimer });
-        localStorage.setItem('show_rest_timer', partial.showRestTimer ? 'true' : 'false');
-      }
-      if (partial.theme !== undefined) {
-        await db.settings.put({ key: 'theme', value: partial.theme });
-        localStorage.setItem('app_theme', partial.theme);
-      }
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Update Supabase Auth user metadata as fail-safe
       if (partial.onboardingComplete !== undefined) {
-        await db.settings.put({ key: 'onboarding_complete', value: partial.onboardingComplete });
-        localStorage.setItem('onboarding_complete', partial.onboardingComplete ? 'true' : 'false');
+        await supabase.auth.updateUser({
+          data: { onboarding_complete: partial.onboardingComplete },
+        });
       }
-      if (partial.buddyName !== undefined) {
-        await db.settings.put({ key: 'buddy_name', value: partial.buddyName });
-        localStorage.setItem('buddy_name', partial.buddyName);
-      }
+
+      // Upsert into user_settings table
+      await supabase.from('user_settings').upsert({
+        user_id: user.id,
+        user_name: updated.userName,
+        user_gender: updated.userGender,
+        weight_unit: updated.weightUnit,
+        rest_timer_duration: updated.restTimerDuration,
+        show_rest_timer: updated.showRestTimer,
+        theme: updated.theme,
+        onboarding_complete: updated.onboardingComplete,
+        buddy_name: updated.buddyName,
+        updated_at: new Date().toISOString(),
+      });
     } catch (err) {
-      console.error('Failed to save settings:', err);
+      console.error('Failed to save settings to Supabase:', err);
     }
   };
 

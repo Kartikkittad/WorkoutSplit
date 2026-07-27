@@ -1,6 +1,13 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import {
+  requestNotificationPermission,
+  updateRestNotification,
+  triggerRestCompletion,
+  clearRestNotification,
+  playWarningVibration,
+} from '@/lib/restNotifier';
 
 interface RestTimerProps {
   defaultSeconds?: number;
@@ -25,49 +32,55 @@ export default function RestTimer({ defaultSeconds = 90, autoStart = false, onCo
 
   useEffect(() => {
     if (isRunning && timeLeft > 0) {
+      updateRestNotification(timeLeft, totalTime);
+
       intervalRef.current = setInterval(() => {
         setTimeLeft((prev) => {
           if (prev <= 1) {
             clearTimer();
             setIsRunning(false);
+            triggerRestCompletion();
+            onComplete?.();
             return 0;
+          }
+          if (prev === 11) {
+            playWarningVibration();
           }
           return prev - 1;
         });
       }, 1000);
     } else {
       clearTimer();
+      if (!isRunning && timeLeft > 0) {
+        clearRestNotification();
+      }
     }
 
     return clearTimer;
-  }, [isRunning, clearTimer]);
-
-  // Stop when hitting 0, vibrate, and fire callback
-  useEffect(() => {
-    if (timeLeft === 0 && isRunning) {
-      setIsRunning(false);
-      // Vibrate on completion
-      if (typeof navigator !== 'undefined' && navigator.vibrate) {
-        navigator.vibrate([200, 100, 200]);
-      }
-      onComplete?.();
-    }
-  }, [timeLeft, isRunning, onComplete]);
+  }, [isRunning, timeLeft, totalTime, clearTimer, onComplete]);
 
   // Auto-start on mount when autoStart is true
   useEffect(() => {
     if (autoStart) {
       setIsRunning(true);
+      requestNotificationPermission();
     }
   }, [autoStart]);
+
 
   const handleStartPause = () => {
     if (timeLeft === 0) {
       // Reset then start
       setTimeLeft(totalTime);
       setIsRunning(true);
+      requestNotificationPermission();
     } else {
-      setIsRunning((prev) => !prev);
+      setIsRunning((prev) => {
+        const next = !prev;
+        if (next) requestNotificationPermission();
+        else clearRestNotification();
+        return next;
+      });
     }
   };
 
@@ -75,6 +88,7 @@ export default function RestTimer({ defaultSeconds = 90, autoStart = false, onCo
     clearTimer();
     setIsRunning(false);
     setTimeLeft(totalTime);
+    clearRestNotification();
   };
 
   const handlePreset = (seconds: number) => {
@@ -82,7 +96,9 @@ export default function RestTimer({ defaultSeconds = 90, autoStart = false, onCo
     setIsRunning(false);
     setTotalTime(seconds);
     setTimeLeft(seconds);
+    clearRestNotification();
   };
+
 
   // SVG ring setup
   const size = 200;

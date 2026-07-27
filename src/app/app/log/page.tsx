@@ -7,6 +7,14 @@ import type { WorkoutSet, Template, Split, Workout, SplitDay } from '@/lib/types
 import RestTimer from '@/components/RestTimer';
 import HugeIcon from '@/components/HugeIcon';
 import { useSettings } from '@/components/SettingsContext';
+import {
+  requestNotificationPermission,
+  updateRestNotification,
+  triggerRestCompletion,
+  clearRestNotification,
+  playWarningVibration,
+} from '@/lib/restNotifier';
+
 
 /* ── SVG Icons ── */
 const FlameIcon = ({ size = 18, color = 'currentColor' }: { size?: number; color?: string }) => (
@@ -301,25 +309,29 @@ function LogWorkoutContent() {
     }
   }, [buddyModeActive]);
 
-  // Rest Timer Interval Countdown and Vibration
+  // Rest Timer Interval Countdown, Notifications and Vibration
   useEffect(() => {
-    if (!restActive || restSeconds <= 0) return;
+    if (!restActive || restSeconds <= 0) {
+      if (!restActive) {
+        clearRestNotification();
+      }
+      return;
+    }
+
+    // Update ongoing phone notification & tab title with remaining rest time
+    updateRestNotification(restSeconds, restTotal);
 
     const interval = setInterval(() => {
       setRestSeconds(prev => {
         if (prev <= 1) {
           clearInterval(interval);
           setRestActive(false);
-          if (typeof navigator !== 'undefined' && navigator.vibrate) {
-            navigator.vibrate([300, 100, 300, 100, 300]);
-          }
+          triggerRestCompletion();
           return 0;
         }
 
         if (prev === 11) {
-          if (typeof navigator !== 'undefined' && navigator.vibrate) {
-            navigator.vibrate([100, 100, 100]);
-          }
+          playWarningVibration();
         }
 
         return prev - 1;
@@ -327,7 +339,8 @@ function LogWorkoutContent() {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [restActive, restSeconds]);
+  }, [restActive, restSeconds, restTotal]);
+
 
   const loadTemplatesList = useCallback(async () => {
     const { getTemplates } = await import('@/lib/storage');
@@ -559,7 +572,9 @@ function LogWorkoutContent() {
     setRestSeconds(duration);
     setRestTotal(duration);
     setRestActive(true);
+    requestNotificationPermission();
   }, []);
+
 
   // Log set from bottom sheet
   const logSetFromSheet = useCallback((exerciseId: string, setIndex: number, weight: number, reps: number, isBuddy: boolean = false) => {
@@ -891,13 +906,6 @@ function LogWorkoutContent() {
       defaultReps: customReps,
       color: categoryColors[customCategory] || '#FFE100',
     };
-
-    try {
-      const { db } = await import('@/lib/dexie');
-      await db.exercises_library.put(newDef);
-    } catch (err) {
-      console.error('Error saving custom exercise', err);
-    }
 
     addExercise(newDef);
     setShowCustomExerciseModal(false);

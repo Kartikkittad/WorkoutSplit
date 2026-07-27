@@ -10,10 +10,10 @@ interface LogoIconProps {
 }
 
 export default function LogoIcon({ size = 40, mode = 'auto', className, style }: LogoIconProps) {
-  // In light mode, the W is dark #111111; in dark mode, the W is solid WHITE #FFFFFF.
-  // When mode is 'auto', CSS variables handle the dynamic theme swap automatically!
-  const wColor = mode === 'dark' ? '#FFFFFF' : mode === 'light' ? '#111111' : 'var(--logo-w-color, #FFFFFF)';
-  const boltBorder = mode === 'dark' ? '#FFFFFF' : mode === 'light' ? '#111111' : 'var(--logo-bolt-border, #FFFFFF)';
+  // In light mode: W is dark #111111, bolt border is #111111
+  // In dark mode: W is crisp white #FFFFFF, bolt border is #FFFFFF
+  const wColor = mode === 'dark' ? '#FFFFFF' : mode === 'light' ? '#111111' : 'var(--logo-w-color, #111111)';
+  const boltBorder = mode === 'dark' ? '#FFFFFF' : mode === 'light' ? '#111111' : 'var(--logo-bolt-border, #111111)';
 
   return (
     <svg
@@ -25,17 +25,17 @@ export default function LogoIcon({ size = 40, mode = 'auto', className, style }:
       className={className}
       style={{ display: 'block', flexShrink: 0, ...style }}
     >
-      {/* Bold White "W" Lettermark */}
+      {/* Bold "W" Lettermark */}
       <path
         d="M12 20 L31 80 L50 32 L69 80 L88 20 L74 20 L60 62 L48 24 L38 24 L26 62 L14 20 Z"
         fill={wColor}
       />
-      {/* Bright Electric Yellow Thunderbolt with White Outline */}
+      {/* Bright Electric Yellow Thunderbolt */}
       <path
         d="M58 10 L35 50 L49 50 L41 90 L65 42 L51 42 Z"
         fill="#FFE100"
         stroke={boltBorder}
-        strokeWidth="3"
+        strokeWidth="2.5"
         strokeLinecap="round"
         strokeLinejoin="round"
       />

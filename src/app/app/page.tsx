@@ -6,6 +6,7 @@ import ProgressCircle from '@/components/ProgressCircle';
 import ExerciseCard from '@/components/ExerciseCard';
 import LineChart from '@/components/LineChart';
 import HugeIcon from '@/components/HugeIcon';
+import LogoIcon from '@/components/LogoIcon';
 
 import { EXERCISES } from '@/lib/exercises';
 import { Workout, BodyWeightEntry } from '@/lib/types';
@@ -143,13 +144,11 @@ export default function HomePage() {
 
   useEffect(() => {
     const calculateStreak = async () => {
-      const { db } = await import('@/lib/dexie');
-      
       if (workouts.length === 0) {
         setCurrentStreak(0);
         setLongestStreak(0);
-        await db.settings.put({ key: 'current_streak', value: 0 });
-        await db.settings.put({ key: 'longest_streak', value: 0 });
+        localStorage.setItem('current_streak', '0');
+        localStorage.setItem('longest_streak', '0');
         return;
       }
 
@@ -217,9 +216,9 @@ export default function HomePage() {
       setCurrentStreak(current);
       setLongestStreak(longest);
 
-      // Save to Dexie settings
-      await db.settings.put({ key: 'current_streak', value: current });
-      await db.settings.put({ key: 'longest_streak', value: longest });
+      // Save streak values
+      localStorage.setItem('current_streak', current.toString());
+      localStorage.setItem('longest_streak', longest.toString());
 
       // Check milestones
       if (current === 3 || current === 7 || current === 30) {
@@ -323,7 +322,7 @@ export default function HomePage() {
       {/* Page Header — Greeting */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <img src="/logo.png" alt="WorkoutSplit Logo" className="theme-logo" style={{ width: 40, height: 40, objectFit: "contain" }} />
+          <LogoIcon size={40} mode="auto" />
           <div>
             <p className="text-secondary" style={{ marginBottom: 2 }}>{timeGreeting}</p>
             <h1 style={{ fontSize: 22, fontWeight: 700 }}>{personalGreeting}</h1>
