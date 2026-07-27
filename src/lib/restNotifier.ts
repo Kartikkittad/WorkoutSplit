@@ -94,6 +94,11 @@ export function playWarningVibration(): void {
   }
 }
 
+interface ExtendedNotificationOptions extends NotificationOptions {
+  renotify?: boolean;
+  vibrate?: number[];
+}
+
 /**
  * Update or post system notification showing remaining rest time
  */
@@ -117,7 +122,7 @@ export async function updateRestNotification(secondsLeft: number, totalSeconds: 
   try {
     if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
       const reg = await navigator.serviceWorker.ready;
-      await reg.showNotification(title, {
+      const options: ExtendedNotificationOptions = {
         body,
         tag,
         icon: '/icon-192.png',
@@ -125,7 +130,8 @@ export async function updateRestNotification(secondsLeft: number, totalSeconds: 
         silent: true,
         renotify: false,
         data: { url: '/app/log' },
-      });
+      };
+      await reg.showNotification(title, options);
     } else {
       if (activeNotification) {
         activeNotification.close();
@@ -165,7 +171,7 @@ export async function triggerRestCompletion(): Promise<void> {
   try {
     if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
       const reg = await navigator.serviceWorker.ready;
-      await reg.showNotification(title, {
+      const options: ExtendedNotificationOptions = {
         body,
         tag,
         icon: '/icon-192.png',
@@ -174,7 +180,8 @@ export async function triggerRestCompletion(): Promise<void> {
         renotify: true,
         requireInteraction: true,
         data: { url: '/app/log' },
-      });
+      };
+      await reg.showNotification(title, options);
     } else {
       if (activeNotification) {
         activeNotification.close();
@@ -190,6 +197,7 @@ export async function triggerRestCompletion(): Promise<void> {
     console.warn('Error displaying completion notification:', err);
   }
 }
+
 
 /**
  * Clear notification and reset document title
