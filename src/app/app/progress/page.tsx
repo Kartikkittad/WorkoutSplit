@@ -69,7 +69,7 @@ function ProgressContent() {
   const [showPicker, setShowPicker] = useState(false);
   const [pickerCategory, setPickerCategory] = useState<string>(() => {
     const found = EXERCISES.find(e => e.id === initialExercise);
-    return found?.category || 'Push';
+    return found?.category || 'Chest';
   });
   const [isSharing, setIsSharing] = useState(false);
   const [prImages, setPrImages] = useState<Record<string, string>>({});
@@ -359,8 +359,8 @@ function ProgressContent() {
             {showPicker && (
               <div className="card" style={{ marginTop: 8, padding: '12px 0 0', position: 'relative', overflow: 'hidden' }}>
                 <div style={{ display: 'flex', gap: 6, padding: '0 12px 12px', borderBottom: '1px solid var(--border-light)' }}>
-                  {(['Push', 'Pull', 'Legs', 'Core'] as const).map(cat => {
-                    const catColors: Record<string, string> = { Push: '#FFE100', Pull: '#FFB4C8', Legs: '#B4F0FF', Core: '#E4B4FF' };
+                  {(['Chest', 'Shoulders', 'Back', 'Biceps', 'Legs', 'Core'] as const).map(cat => {
+                    const catColors: Record<string, string> = { Chest: '#FFE100', Shoulders: '#FF9F43', Back: '#FFB4C8', Biceps: '#FF6B6B', Legs: '#B4F0FF', Core: '#E4B4FF' };
                     return (
                       <button
                         key={cat}

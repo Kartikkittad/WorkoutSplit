@@ -16,7 +16,7 @@ interface ExerciseCardProps {
 export default function ExerciseCard({
   icon,
   name,
-  category = 'Push',
+  category = 'Chest',
   workoutCount,
   duration,
   color,
