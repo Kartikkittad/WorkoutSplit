@@ -238,7 +238,7 @@ function LogWorkoutContent() {
   // Custom Exercise Creation state
   const [showCustomExerciseModal, setShowCustomExerciseModal] = useState(false);
   const [customName, setCustomName] = useState('');
-  const [customCategory, setCustomCategory] = useState<'Push' | 'Pull' | 'Legs' | 'Core' | 'Cardio'>('Push');
+  const [customCategory, setCustomCategory] = useState<'Chest' | 'Shoulders' | 'Triceps' | 'Back' | 'Biceps' | 'Legs' | 'Glutes' | 'Core' | 'Forearms' | 'Cardio'>('Chest');
   const [customSets, setCustomSets] = useState(3);
   const [customReps, setCustomReps] = useState(10);
 
@@ -365,7 +365,7 @@ function LogWorkoutContent() {
         return {
           exerciseId: ex.exerciseId,
           exerciseName: ex.exerciseName,
-          category: EXERCISES.find(e => e.id === ex.exerciseId)?.category || 'Push',
+          category: EXERCISES.find(e => e.id === ex.exerciseId)?.category || 'Chest',
           color: EXERCISES.find(e => e.id === ex.exerciseId)?.color || '#C8F135',
           sets,
           buddySets: sets.map(s => ({ ...s }))
@@ -393,7 +393,7 @@ function LogWorkoutContent() {
         return {
           exerciseId: exId,
           exerciseName: def?.name || exId,
-          category: def?.category || 'Push',
+          category: def?.category || 'Chest',
           color: def?.color || '#C8F135',
           sets,
           buddySets: sets.map(s => ({ ...s }))
@@ -458,12 +458,12 @@ function LogWorkoutContent() {
     } else if (preset) {
       // Preset workout
       const presetMap: Record<string, { name: string; categories: string[] }> = {
-        upper: { name: 'Upper Body Workout', categories: ['Push', 'Pull'] },
-        lower: { name: 'Lower Body Workout', categories: ['Legs'] },
-        push: { name: 'Push Day', categories: ['Push'] },
-        pull: { name: 'Pull Day', categories: ['Pull'] },
-        legs: { name: 'Leg Day', categories: ['Legs'] },
-        full: { name: 'Full Body', categories: ['Push', 'Pull', 'Legs', 'Core'] },
+        upper: { name: 'Upper Body Workout', categories: ['Chest', 'Shoulders', 'Triceps', 'Back', 'Biceps'] },
+        lower: { name: 'Lower Body Workout', categories: ['Legs', 'Glutes'] },
+        push: { name: 'Push Day', categories: ['Chest', 'Shoulders', 'Triceps'] },
+        pull: { name: 'Pull Day', categories: ['Back', 'Biceps'] },
+        legs: { name: 'Leg Day', categories: ['Legs', 'Glutes'] },
+        full: { name: 'Full Body', categories: ['Chest', 'Back', 'Legs', 'Shoulders', 'Core'] },
       };
       const p = presetMap[preset.toLowerCase()];
       if (p) {
@@ -1173,7 +1173,8 @@ function LogWorkoutContent() {
   };
 
   const handleSaveWorkoutNotesAndExit = async () => {
-    if (!finishedWorkout) return;
+    if (!finishedWorkout || saving) return;
+    setSaving(true);
     try {
       const { saveWorkout } = await import('@/lib/storage');
       
@@ -1231,6 +1232,7 @@ function LogWorkoutContent() {
       router.push('/app');
     } catch (e) {
       console.error(e);
+      setSaving(false);
     }
   };
 
@@ -1428,8 +1430,8 @@ function LogWorkoutContent() {
                         </span>
                         <span style={{
                           fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 9999,
-                          background: ex.category === 'Push' ? '#FFE100' : `${ex.color}20`,
-                          color: ex.category === 'Push' ? '#111111' : ex.color,
+                          background: (ex.color === '#FFE100' || ex.color === '#FECA57') ? ex.color : `${ex.color}20`,
+                          color: (ex.color === '#FFE100' || ex.color === '#FECA57') ? '#111111' : ex.color,
                           flexShrink: 0
                         }}>
                           {ex.category}
@@ -1646,7 +1648,7 @@ function LogWorkoutContent() {
                                     borderRadius: 12,
                                     background: isSetPillCompleted ? 'var(--lime)' : 'var(--input-bg)',
                                     border: '1px solid ' + (isSetPillCompleted ? 'transparent' : 'var(--border-light)'),
-                                    color: 'var(--text-primary)',
+                                    color: isSetPillCompleted ? '#111111' : 'var(--text-primary)',
                                     display: 'flex',
                                     alignItems: 'center',
                                     gap: 6,
@@ -1927,7 +1929,7 @@ function LogWorkoutContent() {
                         <div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                             <span style={{ fontWeight: 800, fontSize: 15, color: 'var(--text-primary)' }}>{exA.exerciseName}</span>
-                            <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 9999, background: exA.category === 'Push' ? '#FFE100' : `${exA.color}15`, color: exA.category === 'Push' ? '#111111' : exA.color }}>{exA.category}</span>
+                            <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 9999, background: (exA.color === '#FFE100' || exA.color === '#FECA57') ? exA.color : `${exA.color}20`, color: (exA.color === '#FFE100' || exA.color === '#FECA57') ? '#111111' : exA.color }}>{exA.category}</span>
                           </div>
 
                           {historyA && historyA.lastSets > 0 ? (
@@ -1981,7 +1983,7 @@ function LogWorkoutContent() {
                         <div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                             <span style={{ fontWeight: 800, fontSize: 15, color: 'var(--text-primary)' }}>{exB.exerciseName}</span>
-                            <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 9999, background: exB.category === 'Push' ? '#FFE100' : `${exB.color}15`, color: exB.category === 'Push' ? '#111111' : exB.color }}>{exB.category}</span>
+                            <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 9999, background: (exB.color === '#FFE100' || exB.color === '#FECA57') ? exB.color : `${exB.color}20`, color: (exB.color === '#FFE100' || exB.color === '#FECA57') ? '#111111' : exB.color }}>{exB.category}</span>
                           </div>
 
                           {historyB && historyB.lastSets > 0 ? (
@@ -2638,6 +2640,7 @@ function LogWorkoutContent() {
 
           <button
             onClick={handleSaveWorkoutNotesAndExit}
+            disabled={saving}
             style={{
               width: '100%',
               maxWidth: 320,
@@ -2649,11 +2652,12 @@ function LogWorkoutContent() {
               fontWeight: 700,
               fontSize: 15,
               fontFamily: 'inherit',
-              cursor: 'pointer',
+              cursor: saving ? 'not-allowed' : 'pointer',
               boxShadow: '0 8px 32px rgba(200, 241, 53, 0.2)',
+              opacity: saving ? 0.6 : 1,
             }}
           >
-            Back to Home
+            {saving ? 'Saving...' : 'Back to Home'}
           </button>
           
           <button
@@ -3402,7 +3406,7 @@ function LogWorkoutContent() {
                 CATEGORY
               </label>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {(['Push', 'Pull', 'Legs', 'Core', 'Cardio'] as const).map(cat => (
+                {(['Chest', 'Shoulders', 'Triceps', 'Back', 'Biceps', 'Legs', 'Glutes', 'Core', 'Forearms', 'Cardio'] as const).map(cat => (
                   <button
                     key={cat}
                     onClick={() => setCustomCategory(cat)}

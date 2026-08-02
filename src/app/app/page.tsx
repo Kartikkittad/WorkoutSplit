@@ -680,7 +680,7 @@ export default function HomePage() {
                       style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: j < Math.min(workout.exercises.length, 3) - 1 ? '1px solid #f1f5f9' : 'none', cursor: 'pointer' }}
                     >
                       <div style={{ width: 32, height: 32, borderRadius: 8, background: exerciseDef ? `${exerciseDef.color}20` : '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {getCategoryIcon(exerciseDef?.category || 'Push', ex.exerciseName)}
+                        {getCategoryIcon(exerciseDef?.category || 'Chest', ex.exerciseName)}
                       </div>
                       <div style={{ flex: 1 }}>
                         <p style={{ fontSize: 14, fontWeight: 600 }}>{ex.exerciseName}</p>

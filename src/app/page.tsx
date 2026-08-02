@@ -143,7 +143,7 @@ export default function LandingPage() {
     "No guilt trips",
     "No subscriptions",
     "No ads",
-    "Google Sign-In",
+    "Email Login",
     "Skip days freely",
     "It still works",
   ];
@@ -720,7 +720,7 @@ export default function LandingPage() {
               {
                 n: "1",
                 t: "Install it",
-                b: "Add to your home screen straight from the browser. No app store required. Fast 1-click Google sign-in.",
+                b: "Add to your home screen straight from the browser. No app store required. Fast email login.",
               },
               {
                 n: "2",

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { GoogleSignInButton } from '@/components/GoogleSignInButton';
+import { EmailOTPLogin } from '@/components/EmailOTPLogin';
 import LogoIcon from '@/components/LogoIcon';
 import { env } from '@/lib/env';
 import { User } from '@supabase/supabase-js';
@@ -110,13 +110,13 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
                 lineHeight: 1.5,
               }}
             >
-              Sign in with your Google account to sync your splits, exercise logs, and personal records.
+              Sign in with your email to sync your splits, exercise logs, and personal records.
             </p>
           </div>
 
-          {/* Google Sign-In Button */}
+          {/* Email OTP Login */}
           <div style={{ width: '100%', marginTop: '8px' }}>
-            <GoogleSignInButton />
+            <EmailOTPLogin />
           </div>
         </div>
       </div>

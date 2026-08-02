@@ -418,7 +418,7 @@ export default function HugeIcon({
   }
 
   // 30. Category Fallbacks (Push, Pull, Legs, Core, Cardio)
-  if (category === "Push") {
+  if (category === "Chest") {
     return (
       <svg {...svgProps}>
         <path d="M5 6v12M19 6v12" />
@@ -429,13 +429,64 @@ export default function HugeIcon({
     );
   }
 
-  if (category === "Pull") {
+  if (category === "Shoulders") {
+    return (
+      <svg {...svgProps}>
+        <circle cx="12" cy="5" r="2.5" />
+        <path d="M7 6l5 3 5-3" />
+        <path d="M12 9v7" />
+        <path d="M9 21l3-5 3 5" />
+      </svg>
+    );
+  }
+
+  if (category === "Triceps") {
+    return (
+      <svg {...svgProps}>
+        <path d="M5 18l5-5 7 2" />
+        <path d="M10 13l3-7" />
+        <circle cx="13" cy="6" r="1.5" />
+      </svg>
+    );
+  }
+
+  if (category === "Back") {
     return (
       <svg {...svgProps}>
         <path d="M12 3v13" />
         <circle cx="12" cy="3" r="1.5" />
         <path d="M7 16l5 4 5-4" />
         <path d="M5 21h14" />
+      </svg>
+    );
+  }
+
+  if (category === "Biceps") {
+    return (
+      <svg {...svgProps}>
+        <path d="M4 16l7-2 4-6" />
+        <path d="M15 8a3 3 0 0 1-4 6" />
+        <circle cx="17" cy="6" r="1.5" />
+      </svg>
+    );
+  }
+
+  if (category === "Glutes") {
+    return (
+      <svg {...svgProps}>
+        <path d="M4 18h16" />
+        <circle cx="12" cy="7" r="2.5" />
+        <path d="M7 18l3-5 5 2 2 3" />
+      </svg>
+    );
+  }
+
+  if (category === "Forearms") {
+    return (
+      <svg {...svgProps}>
+        <rect x="8" y="4" width="8" height="6" rx="2" />
+        <path d="M10 10v9M14 10v9" />
+        <path d="M7 19h10" />
       </svg>
     );
   }

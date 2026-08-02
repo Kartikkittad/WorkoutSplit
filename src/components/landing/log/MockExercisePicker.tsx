@@ -1,6 +1,6 @@
 'use client';
 
-const CHIPS = ['All', 'Push', 'Pull', 'Legs', 'Core'];
+const CHIPS = ['All', 'Chest', 'Back', 'Legs', 'Arms', 'Core'];
 
 export default function MockExercisePicker() {
   return (

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSettings } from "@/components/SettingsContext";
 import { createClient } from "@/lib/supabase/client";
-import { GoogleSignInButton } from "@/components/GoogleSignInButton";
+import { EmailOTPLogin } from "@/components/EmailOTPLogin";
 import UserAvatar from "@/components/UserAvatar";
 import { User } from "@supabase/supabase-js";
 
@@ -200,10 +200,10 @@ export default function SettingsPage() {
                 margin: 0,
               }}
             >
-              Sign in with Google to sync your workout splits, templates, and
+              Sign in with your email to sync your workout splits, templates, and
               history across devices securely.
             </p>
-            <GoogleSignInButton />
+            <EmailOTPLogin />
           </div>
         )}
       </div>
